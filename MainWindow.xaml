@@ -14,8 +14,6 @@
             <RowDefinition Height="Auto" />
             <RowDefinition />
         </Grid.RowDefinitions>
-
-        <!-- タイトルバー -->
         <Grid x:Name="TitleBar" Background="Transparent" Height="32">
             <TextBlock Text="SkinInjector v2 Created by oasobi" Foreground="White"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>

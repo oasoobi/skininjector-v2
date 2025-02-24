@@ -123,7 +123,6 @@ namespace skininjector_v2
                 var items = e.DataView.GetStorageItemsAsync().AsTask().Result;
                 if (items.Count > 0 && items[0] is StorageFolder)
                 {
-                    // フォルダがドラッグされてきた場合はドロップを受け入れられるようにする
                     e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
                 }
             }
@@ -131,15 +130,12 @@ namespace skininjector_v2
 
         private async void WindowDrag(object sender, Microsoft.UI.Xaml.DragEventArgs e)
         {
-            // ドロップされたデータを取得
             if (e.DataView.Contains(StandardDataFormats.StorageItems))
             {
                 var items = await e.DataView.GetStorageItemsAsync();
 
-                // ドロップされたデータがフォルダであるか確認
                 if (items.Count > 0 && items[0] is StorageFolder folder)
                 {
-                    // フォルダがドロップされた場合、そのパスをTextBoxに表示
                     SelectedSkinPackPathBox.Text = folder.Path;
                     isPathSelected = true;
                 }
@@ -166,8 +162,6 @@ namespace skininjector_v2
                             Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
 
                         isTargetPackSelected = false;
-
-                        // ItemSourceの更新を安全に実行
                         UpdateSkinPackList();
                     }
                     catch (Exception ex)
@@ -183,11 +177,7 @@ namespace skininjector_v2
             try
             {
                 PackNameList_ = GetAllSkinPackData();
-
-                // UI要素の無効化
                 DeleteSkinDataBtn.IsEnabled = false;
-
-                // ItemSourceの更新
                 DispatcherQueue.TryEnqueue(() =>
                 {
                     PackNameListView.ItemsSource = PackNameList_;
@@ -251,8 +241,6 @@ namespace skininjector_v2
                 this.ShowErrorMsg("置き換え元のスキンパックが選択されていません。");
                 return;
             }
-
-            // UI要素を無効化
             await DisableUIElements();
 
             try
@@ -275,7 +263,6 @@ namespace skininjector_v2
                     return;
                 }
 
-                // 進捗状況を更新
                 InjectProgress.Value = 0;
                 // tempディレクトリの準備
                 string tempSkinpackDirectryPath = Path.Combine(currentDiretory, tempDirectoryName);
@@ -313,7 +300,6 @@ namespace skininjector_v2
             }
             finally
             {
-                // UI要素を再度有効化
                 EnableUIElements();
             }
         }
@@ -476,8 +462,6 @@ namespace skininjector_v2
             InjectProgress.Value = 0;
         }
     }
-
-
 
     public class PackInfo
     {
