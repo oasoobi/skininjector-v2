@@ -15,7 +15,7 @@
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid x:Name="TitleBar" Background="Transparent" Height="32">
-            <TextBlock Text="SkinInjector v2 Created by oasobi" Foreground="White"
+            <TextBlock Text="SkinInjector v2 Created by oasobi"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Grid>
         <Grid Width="1000" Height="600" Grid.Row="1">
