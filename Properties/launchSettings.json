@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "skininjector v2 (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "skininjector v2 (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
