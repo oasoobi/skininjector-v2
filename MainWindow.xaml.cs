@@ -32,21 +32,26 @@ namespace skininjector_v2
         private static Boolean isTargetPackSelected = false;
         private static Boolean isPreviewEdition = false;
 
-            private MicaController micaController;
         private DesktopAcrylicController acrylicController;
 
         private SystemBackdropConfiguration backdropConfiguration;
+
+        private Boolean isExistMinecraft = false;
+        private Boolean isExistMinecraftPreview = false;
 
         public MainWindow()
         {
             this.InitializeComponent();
 
-            
+
             EditionChangedBox.SelectedIndex = 0;
             InjectProgress.Value = 0;
-            EditonChanged(EditionChangedBox, null);
+            DeleteSkinDataBtn.IsEnabled = false;
             TrySetAcrylicBackdrop();
+
+            EditonChanged(EditionChangedBox, null);
         }
+
 
         private void TrySetAcrylicBackdrop()
         {
@@ -69,6 +74,20 @@ namespace skininjector_v2
 
 
             }
+        }
+
+        private static Boolean CheckSkinpackFolderExist(String Edition)
+        {
+            string targetPath;
+            if (Edition == "minecraft preview")
+            {
+                targetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
+            }
+            else
+            {
+                targetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+            }
+            return Directory.Exists(targetPath);
         }
 
         private List<PackInfo> GetAllSkinPackData()
@@ -147,28 +166,59 @@ namespace skininjector_v2
             var comboBox = sender as ComboBox;
             var selectedItem = comboBox?.SelectedItem as ComboBoxItem;
 
+            isExistMinecraft = CheckSkinpackFolderExist("minecraft");
+            isExistMinecraftPreview = CheckSkinpackFolderExist("minecraft preview");
+
+            if (!isExistMinecraft)
+            {
+                MinecraftEdtionBoxItem.IsEnabled = false;
+                Debug.WriteLine("be");
+                EditionChangedBox.IsEnabled = false;
+            }
+            if (!isExistMinecraftPreview)
+            {
+                MinecraftPreviewEdtionBoxItem.IsEnabled = false;
+                EditionChangedBox.IsEnabled = false;
+                Debug.WriteLine("bep");
+            }
+            if (!isExistMinecraft && !isExistMinecraftPreview)
+            {
+                comboBox.SelectedIndex = -1;
+                return;
+            }
+
             if (selectedItem != null)
             {
                 bool isPreview = selectedItem.Content.ToString() == "Minecraft Preview";
 
-                // UIスレッドで実行
-                _ = DispatcherQueue.TryEnqueue(async () =>
+                if (!isPreview)
                 {
-                    try
-                    {
-                        isPreviewEdition = isPreview;
-                        ChangedPath.Text = isPreview ?
-                            Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH) :
-                            Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                    isPreview = !isExistMinecraft && isExistMinecraftPreview;
+                }
 
-                        isTargetPackSelected = false;
-                        UpdateSkinPackList();
-                    }
-                    catch (Exception ex)
-                    {
-                        ShowErrorMsg(ex.Message);
-                    }
-                });
+                if (isPreview)
+                {
+                    comboBox.SelectedIndex = 1;
+                    ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
+                }
+                else
+                {
+                    comboBox.SelectedIndex = 0;
+                    ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                }
+
+                try
+                {
+                    isPreviewEdition = isPreview;
+
+
+                    isTargetPackSelected = false;
+                    UpdateSkinPackList();
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMsg(ex.Message);
+                }
             }
         }
 
@@ -322,7 +372,7 @@ namespace skininjector_v2
             SelectedSkinPackPathBox.IsEnabled = true;
             SelectSkinPackPathBtn.IsEnabled = true;
             EncryptCheckBox.IsEnabled = true;
-            EditionChangedBox.IsEnabled = true;
+            EditionChangedBox.IsEnabled = !isExistMinecraft && !isExistMinecraftPreview;
             InjectBtn.IsEnabled = true;
             DeleteSkinDataBtn.IsEnabled = true;
         }
@@ -432,6 +482,7 @@ namespace skininjector_v2
                 PackNameList_ = GetAllSkinPackData();
                 PackNameListView.ItemsSource = PackNameList_;
                 DeleteSkinDataBtn.IsEnabled = false;
+                isTargetPackSelected = false;
             }
         }
 
@@ -445,6 +496,7 @@ namespace skininjector_v2
                 XamlRoot = App.MainWindow.Content.XamlRoot
 
             };
+            Debug.WriteLine(text);
             await dialog.ShowAsync();
         }
 

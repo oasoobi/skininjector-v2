@@ -27,8 +27,8 @@
                     <Button Margin="5 0 5 0" Width="60" Click="SelectSkinPackFolder" x:Name="SelectSkinPackPathBtn">選択</Button>
 
                     <ComboBox x:Name="EditionChangedBox" Width="180" SelectionChanged="EditonChanged">
-                        <ComboBoxItem>Minecraft</ComboBoxItem>
-                        <ComboBoxItem>Minecraft Preview</ComboBoxItem>
+                        <ComboBoxItem x:Name="MinecraftEdtionBoxItem">Minecraft</ComboBoxItem>
+                        <ComboBoxItem x:Name="MinecraftPreviewEdtionBoxItem">Minecraft Preview</ComboBoxItem>
                     </ComboBox>
                 </StackPanel>
                 <TextBlock Text="スキンデータの保存先のパス:" Margin="5 0 0 5"/>
