@@ -37,8 +37,6 @@ namespace skininjector_v2
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
             appWindow.Resize(new Windows.Graphics.SizeInt32(1000, 700));
             var presneter = Microsoft.UI.Windowing.OverlappedPresenter.Create();
-            presneter.IsResizable = false;
-            presneter.IsMaximizable = false;
             appWindow.SetPresenter(presneter);
         }
 

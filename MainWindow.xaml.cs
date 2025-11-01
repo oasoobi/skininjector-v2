@@ -25,7 +25,7 @@ namespace skininjector_v2
     {
 
         private List<PackInfo> PackNameList_;
-        private static string MINECRAFT_PATH = "%USERPROFILE%\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\premium_cache\\skin_packs";
+        private static string MINECRAFT_PATH = "%AppData%\\Minecraft Bedrock\\premium_cache\\skin_packs";
         private static string MINECRAFT_PREVIEW_PATH = "%USERPROFILE%\\AppData\\Local\\Packages\\Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe\\LocalState\\premium_cache\\skin_packs";
 
         private static Boolean isPathSelected = false;
@@ -43,7 +43,7 @@ namespace skininjector_v2
         {
             this.InitializeComponent();
 
-
+            WindowHelper.SetMinSize(this, 1000, 700);
             EditionChangedBox.SelectedIndex = 0;
             InjectProgress.Value = 0;
             DeleteSkinDataBtn.IsEnabled = false;

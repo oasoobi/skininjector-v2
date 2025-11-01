@@ -11,10 +11,14 @@
     <UseWinUI>true</UseWinUI>
 	<WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 	<WindowsPackageType>None</WindowsPackageType>
-	<SelfContained>true</SelfContained>
+	<SelfContained>false</SelfContained>
 	<EnableMsixTooling>true</EnableMsixTooling>
 	<PublishSingleFile>true</PublishSingleFile>
-    <Nullable>enable</Nullable>
+	<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+	<GenerateDocumentationFile>false</GenerateDocumentationFile>
+	<PublishTrimmed>true</PublishTrimmed>
+	<PublishSingleFile>false</PublishSingleFile>
+	<Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
