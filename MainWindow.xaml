@@ -38,7 +38,7 @@
                     <ListView x:Name="PackNameListView" ItemsSource="{Binding PackNameList}" ScrollViewer.VerticalScrollMode="Enabled" Height="460" SelectionChanged="TargetPackChanged">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:PackInfo">
-                                <TextBlock Text="{Binding PackName}"></TextBlock>
+                                <TextBlock Text="{Binding PackName}" RightTapped="PackItem_RightTapped"></TextBlock>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>

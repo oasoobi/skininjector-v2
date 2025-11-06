@@ -1,20 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
+using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
-using System.Diagnostics;
 using Windows.Storage.Pickers;
-using System.Threading.Tasks;
-using Microsoft.UI.Composition.SystemBackdrops;
 using WinRT;
-using Microsoft.UI;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using System.Text.Json;
 
 namespace skininjector_v2
 {
@@ -25,12 +25,19 @@ namespace skininjector_v2
     {
 
         private List<PackInfo> PackNameList_;
-        private static string MINECRAFT_PATH = "%AppData%\\Minecraft Bedrock\\premium_cache\\skin_packs";
-        private static string MINECRAFT_PREVIEW_PATH = "%USERPROFILE%\\AppData\\Local\\Packages\\Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe\\LocalState\\premium_cache\\skin_packs";
+
+        private readonly string LEGACY_MINECRAFT_PATH = "%LocalAppData%\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\premium_cache\\skin_packs";
+        private readonly string LEGACY_MINECRAFT_PREVIEW_PATH = "%LocalAppData\\Packages\\Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe\\LocalState\\premium_cache\\skin_packs";
+        private readonly string MINECRAFT_PATH = "%AppData%\\Minecraft Bedrock\\premium_cache\\skin_packs";
+        private readonly string MINECRAFT_PREVIEW_PATH = "%AppData%\\Minecraft Bedrock Preview\\premium_cache\\skin_packs";
+
+        private static string currentTargetPath = "";
+        private static Boolean isPreviewLegacy = false;
+        private static Boolean isMinecraftLegacy = false;
+        private ContentDialog? _currentDialog;
 
         private static Boolean isPathSelected = false;
         private static Boolean isTargetPackSelected = false;
-        private static Boolean isPreviewEdition = false;
 
         private DesktopAcrylicController acrylicController;
 
@@ -42,14 +49,16 @@ namespace skininjector_v2
         public MainWindow()
         {
             this.InitializeComponent();
+            Debug.WriteLine("起動した。");
 
             WindowHelper.SetMinSize(this, 1000, 700);
-            EditionChangedBox.SelectedIndex = 0;
+            EditionChangedBox.SelectedIndex = -1;
+            EditionChangedBox.IsEnabled = false;
             InjectProgress.Value = 0;
             DeleteSkinDataBtn.IsEnabled = false;
             TrySetAcrylicBackdrop();
 
-            EditonChanged(EditionChangedBox, null);
+            UpdateSkinPackList();
         }
 
 
@@ -76,31 +85,54 @@ namespace skininjector_v2
             }
         }
 
-        private static Boolean CheckSkinpackFolderExist(String Edition)
-        {
-            string targetPath;
-            if (Edition == "minecraft preview")
-            {
-                targetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
-            }
-            else
-            {
-                targetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
-            }
-            return Directory.Exists(targetPath);
-        }
-
         private List<PackInfo> GetAllSkinPackData()
         {
-            string targetPath;
-            if (isPreviewEdition)
+            if (currentTargetPath == "")
             {
-                targetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
+                if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH)))
+                {
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH);
+                    isExistMinecraftPreview = true;
+                    isPreviewLegacy = true;
+                }
+                else if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH)))
+                {
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
+                    isExistMinecraftPreview = true;
+                    isPreviewLegacy = false;
+
+                }
+
+                if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH)))
+                {
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH);
+                    isExistMinecraft = true;
+                    isMinecraftLegacy = true;
+                }
+                else
+                if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PATH)))
+                {
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                    isExistMinecraft = true;
+                    isMinecraftLegacy = false;
+
+                }
+                MinecraftEdtionBoxItem.IsEnabled = isExistMinecraft;
+                MinecraftPreviewEdtionBoxItem.IsEnabled = isExistMinecraftPreview;
+                if (isExistMinecraft && isExistMinecraftPreview)
+                {
+                    EditionChangedBox.IsEnabled = true;
+                }
+                if (isExistMinecraft)
+                {
+                    EditionChangedBox.SelectedIndex = 0;
+                }
+                else if (isExistMinecraftPreview)
+                {
+                    EditionChangedBox.SelectedIndex = 1;
+                }
             }
-            else
-            {
-                targetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
-            }
+            string targetPath = currentTargetPath;
 
             var packList = new List<PackInfo>();
 
@@ -110,29 +142,109 @@ namespace skininjector_v2
             {
                 string manifestPath = System.IO.Path.Combine(subFolder, "manifest.json");
 
+
                 if (File.Exists(manifestPath))
                 {
                     try
                     {
                         string content = File.ReadAllText(manifestPath);
                         var json = JsonObject.Parse(content);
-                        string? packName = json["header"]?["name"]?.ToString();
-
-                        packName ??= "Unknown";
-                        packList.Add(new PackInfo
+                        if (JsonObject.Parse(content) == null)
                         {
-                            FolderPath = subFolder,
-                            PackName = packName
-                        });
+                            continue;
+                        }
+                        string? packName = json["header"]?["name"]?.ToString();
+                        if (packName != null)
+                        {
+                            packName = packName.Replace("\n", "").Replace("\r", "");
+                            string textsFolder = System.IO.Path.Combine(subFolder, "texts");
+                            if (Directory.Exists(textsFolder))
+                            {
+                                string japaneseFilePath = System.IO.Path.Combine(textsFolder, "ja_JP.lang");
+                                string englishFilePath = System.IO.Path.Combine(textsFolder, "en_US.lang");
+                                Regex regex = new Regex(@"^skinpack\.[^=\s]+=(.*\S.*)$", RegexOptions.Multiline);
+                                if (File.Exists(japaneseFilePath))
+                                {
+                                    var text = File.ReadAllText(japaneseFilePath).ToString();
+                                    MatchCollection matches = regex.Matches(text);
+                                    if (matches.Count > 0)
+                                    {
+                                        packName = matches[0].Groups[1].Value.Trim();
+                                    }
+                                }
+                                else if (File.Exists(englishFilePath))
+                                {
+                                    var text = File.ReadAllText(englishFilePath).ToString();
+                                    MatchCollection matches = regex.Matches(text);
+                                    if (matches.Count > 0)
+                                    {
+                                        packName = matches[0].Groups[1].Value.Trim();
+                                    }
+                                }
+                            }
+                            packList.Add(new PackInfo
+                            {
+                                FolderPath = subFolder,
+                                PackName = packName
+                            });
+                        }
+                        else
+                        {
+                            packName = "Unknown";
+                        }
 
                     }
                     catch (Exception ex)
                     {
-                        ShowErrorMsg(ex.Message);
+                        Console.WriteLine(ex);
+                        return packList;
                     }
                 }
             }
             return packList;
+        }
+
+        private void PackItem_RightTapped(object sender, RightTappedRoutedEventArgs e)
+        {
+            var textBlock = sender as TextBlock;
+            if (textBlock == null) return;
+
+            var packInfo = textBlock.DataContext as PackInfo;
+            if (packInfo == null) return;
+
+
+            // メニュー作成
+            var menu = new MenuFlyout();
+
+            var openItem = new MenuFlyoutItem { Text = "フォルダを開く" };
+            openItem.Click += (s, args) =>
+            {
+
+                if (Directory.Exists(packInfo.FolderPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = packInfo.FolderPath,
+                        UseShellExecute = true,
+                        Verb = "open"
+                    });
+                }
+            };
+
+            var deleteItem = new MenuFlyoutItem { Text = "スキンデータを削除" };
+            deleteItem.Click += (s, args) =>
+            {
+                if (packInfo.FolderPath != null)
+                {
+                    DeleteSkinDataByPackFolder(packInfo.FolderPath);
+                }
+            };
+
+            menu.Items.Add(openItem);
+            menu.Items.Add(deleteItem);
+
+            // メニュー表示
+            menu.ShowAt(textBlock, e.GetPosition(textBlock));
         }
 
         private void WindowDragEnter(object sender, DragEventArgs e)
@@ -164,60 +276,36 @@ namespace skininjector_v2
         private void EditonChanged(object sender, SelectionChangedEventArgs e)
         {
             var comboBox = sender as ComboBox;
-            var selectedItem = comboBox?.SelectedItem as ComboBoxItem;
+            if (comboBox?.SelectedItem is not ComboBoxItem selectedItem) return;
+            bool isMinecraft = selectedItem.Name == "MinecraftEdtionBoxItem";
 
-            isExistMinecraft = CheckSkinpackFolderExist("minecraft");
-            isExistMinecraftPreview = CheckSkinpackFolderExist("minecraft preview");
 
-            if (!isExistMinecraft)
+            if (selectedItem != null && comboBox != null)
             {
-                MinecraftEdtionBoxItem.IsEnabled = false;
-                Debug.WriteLine("be");
-                EditionChangedBox.IsEnabled = false;
-            }
-            if (!isExistMinecraftPreview)
-            {
-                MinecraftPreviewEdtionBoxItem.IsEnabled = false;
-                EditionChangedBox.IsEnabled = false;
-                Debug.WriteLine("bep");
-            }
-            if (!isExistMinecraft && !isExistMinecraftPreview)
-            {
-                comboBox.SelectedIndex = -1;
-                return;
-            }
+                string? content = comboBox.SelectedValue.ToString();
+                Debug.WriteLine(content);
 
-            if (selectedItem != null)
-            {
-                bool isPreview = selectedItem.Content.ToString() == "Minecraft Preview";
-
-                if (!isPreview)
+                if (isMinecraft)
                 {
-                    isPreview = !isExistMinecraft && isExistMinecraftPreview;
-                }
-
-                if (isPreview)
-                {
-                    comboBox.SelectedIndex = 1;
-                    ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
+                    ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(
+                        isMinecraftLegacy ? LEGACY_MINECRAFT_PATH : MINECRAFT_PATH);
                 }
                 else
                 {
-                    comboBox.SelectedIndex = 0;
-                    ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                    ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(
+                        isPreviewLegacy ? LEGACY_MINECRAFT_PREVIEW_PATH : MINECRAFT_PREVIEW_PATH);
                 }
 
                 try
                 {
-                    isPreviewEdition = isPreview;
-
-
                     isTargetPackSelected = false;
                     UpdateSkinPackList();
                 }
                 catch (Exception ex)
                 {
-                    ShowErrorMsg(ex.Message);
+                    Console.WriteLine(ex.Message);
                 }
             }
         }
@@ -227,15 +315,24 @@ namespace skininjector_v2
             try
             {
                 PackNameList_ = GetAllSkinPackData();
+
+
+
                 DeleteSkinDataBtn.IsEnabled = false;
-                DispatcherQueue.TryEnqueue(() =>
                 {
-                    PackNameListView.ItemsSource = PackNameList_;
-                });
+                    var listView = PackNameListView;
+                    if (listView != null)
+                    {
+                        DispatcherQueue.TryEnqueue(() =>
+                        {
+                            listView.ItemsSource = PackNameList_;
+                        });
+                    }
+                }
             }
             catch (Exception ex)
             {
-                ShowErrorMsg(ex.Message);
+                Console.WriteLine(ex.Message);
             }
         }
 
@@ -291,16 +388,17 @@ namespace skininjector_v2
                 this.ShowErrorMsg("置き換え元のスキンパックが選択されていません。");
                 return;
             }
-            await DisableUIElements();
+
+            if (!Directory.Exists(SelectedSkinPackPathBox.Text))
+            {
+                this.ShowErrorMsg("置き換え先のスキンパックのパスが存在しません。");
+                InjectProgress.Value = 0;
+                return;
+            }
 
             try
             {
-                if (!Directory.Exists(SelectedSkinPackPathBox.Text))
-                {
-                    this.ShowErrorMsg("置き換え先のスキンパックのパスが存在しません。");
-                    InjectProgress.Value = 0;
-                    return;
-                }
+
 
                 string currentDiretory = Directory.GetCurrentDirectory();
                 string tempDirectoryName = "skinpack";
@@ -312,25 +410,27 @@ namespace skininjector_v2
                     this.ShowErrorMsg("置き換え元のスキンパックのパスが存在しません。");
                     return;
                 }
+                await DisableUIElements();
 
                 InjectProgress.Value = 0;
                 // tempディレクトリの準備
-                string tempSkinpackDirectryPath = Path.Combine(currentDiretory, tempDirectoryName);
-                await PrepareTempDirectory(tempSkinpackDirectryPath);
-                InjectProgress.Value = 20;
 
-                // ファイルのコピー
-                await CopySourceFiles(sourcePath, tempSkinpackDirectryPath);
-                InjectProgress.Value = 30;
+                string tempSkinpackDirectryPath = Path.Combine(currentDiretory, tempDirectoryName);
+
+                await PrepareTempDirectory(tempSkinpackDirectryPath, sourcePath);
+                InjectProgress.Value = 20;
 
                 if (Directory.Exists(targetPath))
                 {
                     // 既存ファイルの削除
                     await DeleteExistingFiles(targetPath);
-                    InjectProgress.Value = 50;
+                    InjectProgress.Value = 30;
 
                     // 新しいファイルのコピー
                     await CopyTempFiles(tempSkinpackDirectryPath, targetPath);
+                    InjectProgress.Value = 60;
+
+                    await UpdateTargetPackName(targetPath, tempSkinpackDirectryPath);
                     InjectProgress.Value = 70;
 
                     // 暗号化処理
@@ -346,14 +446,12 @@ namespace skininjector_v2
             catch (Exception ex)
             {
                 this.ShowErrorMsg($"エラーが発生しました: {ex.Message}");
-                InjectProgress.Value = 0;
             }
             finally
             {
                 EnableUIElements();
             }
         }
-
         private async Task DisableUIElements()
         {
             PackNameListView.IsEnabled = false;
@@ -372,31 +470,28 @@ namespace skininjector_v2
             SelectedSkinPackPathBox.IsEnabled = true;
             SelectSkinPackPathBtn.IsEnabled = true;
             EncryptCheckBox.IsEnabled = true;
-            EditionChangedBox.IsEnabled = !isExistMinecraft && !isExistMinecraftPreview;
+            EditionChangedBox.IsEnabled = isExistMinecraft && isExistMinecraftPreview;
             InjectBtn.IsEnabled = true;
             DeleteSkinDataBtn.IsEnabled = true;
         }
 
-        private async Task PrepareTempDirectory(string tempPath)
+        private async Task PrepareTempDirectory(string tempPath, string sourcePath)
         {
-            if (Directory.Exists(tempPath))
+            try
             {
-                Directory.Delete(tempPath, true);
-                await Task.Delay(50);
-            }
-            Directory.CreateDirectory(tempPath);
-        }
-
-        private async Task CopySourceFiles(string sourcePath, string tempPath)
-        {
-            foreach (var filePath in Directory.GetFiles(sourcePath))
-            {
-                string fileName = Path.GetFileName(filePath);
-                if (fileName != "manifest.json")
+                if (Directory.Exists(tempPath))
                 {
-                    string destFilePath = Path.Combine(tempPath, fileName);
-                    await Task.Run(() => File.Copy(filePath, destFilePath));
+                    Directory.Delete(tempPath, true);
+                    await Task.Delay(50);
                 }
+                Directory.CreateDirectory(tempPath);
+                await Task.Delay(50);
+
+                Utils.CopyDirectory(sourcePath, tempPath);
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMsg($"一時ディレクトリの準備中にエラーが発生しました: {ex.Message}");
             }
         }
 
@@ -417,14 +512,131 @@ namespace skininjector_v2
             }
         }
 
+        //private async Task ImportUUIDsFromTargetManifestAsync(string targetManifestPath, string sourceTargetPath)
+        //{
+        //    await Task.Run(() => {
+        //        string targetFolderManifest = System.IO.Path.Combine(targetManifestPath, "manifest.json");
+        //        if (!File.Exists(targetFolderManifest))
+        //        {
+        //            ShowErrorMsg("対象のスキンパックのmanifest.jsonが存在しません。");
+        //            return;
+        //        }
+        //        string targetManifestData = File.ReadAllText(targetFolderManifest);
+        //        var json = JsonObject.Parse(targetManifestData);
+        //        if (json == null)
+        //        {
+        //            ShowErrorMsg("対象のスキンパックのmanifest.jsonが空っぽまたは無効です。");
+        //            return;
+        //        }
+        //        string targetManifestHeaderUUID = json["header"]?["uuid"]?.ToString();
+        //        string targetManifestModuleUUID = json["modules"]?[0]?["uuid"]?.ToString();
+
+        //        Debug.WriteLine(targetManifestHeaderUUID, targetManifestModuleUUID);
+        //        string sourceFolderManifestPath = System.IO.Path.Combine(sourceTargetPath, "manifest.json");
+        //        if (!File.Exists(sourceFolderManifestPath))
+        //        {
+        //            ShowErrorMsg("元のスキンパックのmanifest.jsonが存在しません。");
+        //            return;
+        //        }
+        //        string sourceFolderManifest = File.ReadAllText(sourceFolderManifestPath);
+        //        var sourceFolderManifestJson = JsonObject.Parse(sourceFolderManifest);
+        //        if (sourceFolderManifestJson == null)
+        //        {
+        //            ShowErrorMsg("元のスキンパックのmanifest.jsonが空っぽまたは無効です。");
+        //            return;
+        //        }
+
+        //        if (sourceFolderManifestJson["header"] != null)
+        //        {
+        //            var headerNode = sourceFolderManifestJson["header"] as JsonObject;
+        //            if (headerNode != null)
+        //            {
+        //                headerNode["uuid"] = targetManifestHeaderUUID;
+        //            }
+        //        }
+
+        //        if (sourceFolderManifestJson["modules"] != null)
+        //        {
+        //            var modulesArray = sourceFolderManifestJson["modules"] as JsonArray;
+        //            if (modulesArray != null && modulesArray.Count > 0)
+        //            {
+        //                var moduleNode = modulesArray[0] as JsonObject;
+        //                if (moduleNode != null)
+        //                {
+        //                    moduleNode["uuid"] = targetManifestModuleUUID;
+        //                }
+        //            }
+        //        }
+
+        //        File.WriteAllText(sourceFolderManifestPath, sourceFolderManifestJson.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        //    });
+        //}
+
+        private async Task UpdateTargetPackName(string targetManifestPath, string sourceManifestPath)
+        {
+            await Task.Run(() =>
+            {
+                // --- 対象パックの manifest.json 読み込み ---
+                string targetManifestFile = Path.Combine(targetManifestPath, "manifest.json");
+                if (!File.Exists(targetManifestFile))
+                {
+                    ShowErrorMsg("対象のスキンパックの manifest.json が存在しません。");
+                    return;
+                }
+
+                string targetManifestText = File.ReadAllText(targetManifestFile);
+                JsonNode? targetManifestJson = JsonNode.Parse(targetManifestText);
+                if (targetManifestJson == null)
+                {
+                    ShowErrorMsg("対象の manifest.json が空っぽまたは無効です。");
+                    return;
+                }
+
+                // --- 元パックの manifest.json 読み込み ---
+                string sourceManifestFile = Path.Combine(sourceManifestPath, "manifest.json");
+                if (!File.Exists(sourceManifestFile))
+                {
+                    ShowErrorMsg("元のスキンパックの manifest.json が存在しません。");
+                    return;
+                }
+
+                string sourceManifestText = File.ReadAllText(sourceManifestFile);
+                JsonNode? sourceManifestJson = JsonNode.Parse(sourceManifestText);
+                if (sourceManifestJson == null)
+                {
+                    ShowErrorMsg("元の manifest.json が空っぽまたは無効です。");
+                    return;
+                }
+
+                // --- name を上書き ---
+                string? newName = sourceManifestJson["header"]?["name"]?.ToString();
+                if (newName == null)
+                {
+                    ShowErrorMsg("元の manifest.json に 'header.name' が存在しません。");
+                    return;
+                }
+
+                if (targetManifestJson["header"] != null)
+                {
+                    targetManifestJson["header"]!["name"] = newName;
+                }
+                else
+                {
+                    ShowErrorMsg("対象の manifest.json に 'header' ノードが存在しません。");
+                    return;
+                }
+
+                // --- 保存 ---
+                File.WriteAllText(
+                    targetManifestFile,
+                    targetManifestJson.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+                );
+            });
+        }
+
         private async Task CopyTempFiles(string tempPath, string targetPath)
         {
-            foreach (var filePath in Directory.GetFiles(tempPath))
-            {
-                string fileName = Path.GetFileName(filePath);
-                string destFilePath = Path.Combine(targetPath, fileName);
-                await Task.Run(() => File.Copy(filePath, destFilePath));
-            }
+            Utils.CopyDirectory(tempPath, targetPath, ["manifest.json"]);
         }
 
         private async Task EncryptFiles(string targetPath)
@@ -434,6 +646,11 @@ namespace skininjector_v2
                 Process encript = new();
                 string currentDir = AppDomain.CurrentDomain.BaseDirectory;
                 encript.StartInfo.FileName = Path.Combine(currentDir, "MCEnc", "McEncryptor.exe");
+                if (!File.Exists(Path.Combine(currentDir, "MCEnc", "McEncryptor.exe")))
+                {
+                    ShowErrorMsg("McEncryptor.exeが見つかりません。");
+                    return;
+                }
                 encript.StartInfo.UseShellExecute = false;
                 encript.StartInfo.RedirectStandardInput = true;
                 encript.StartInfo.CreateNoWindow = true;
@@ -479,8 +696,26 @@ namespace skininjector_v2
                 Directory.Delete(targetPath, true);
                 InjectProgress.Value = 100;
                 this.ShowMsg("削除しました。");
-                PackNameList_ = GetAllSkinPackData();
-                PackNameListView.ItemsSource = PackNameList_;
+                UpdateSkinPackList();
+                DeleteSkinDataBtn.IsEnabled = false;
+                isTargetPackSelected = false;
+            }
+        }
+
+        private void DeleteSkinDataByPackFolder(string folderPath)
+        {
+            string? targetPath = folderPath;
+            if (targetPath == null)
+            {
+                this.ShowErrorMsg("削除するスキンパックのパスが存在しません。");
+                return;
+            }
+            else
+            {
+                Directory.Delete(targetPath, true);
+                InjectProgress.Value = 100;
+                this.ShowMsg("削除しました。");
+                UpdateSkinPackList();
                 DeleteSkinDataBtn.IsEnabled = false;
                 isTargetPackSelected = false;
             }
@@ -488,20 +723,30 @@ namespace skininjector_v2
 
         private async void ShowErrorMsg(String text)
         {
+            if (_currentDialog != null) return;
+
+            DispatcherQueue.TryEnqueue(async () =>
+        {
             var dialog = new ContentDialog
             {
                 Title = "エラーが発生しました。",
                 Content = $"{text}",
                 CloseButtonText = "OK",
                 XamlRoot = App.MainWindow.Content.XamlRoot
-
             };
+            _currentDialog = dialog;
+            InjectProgress.Value = 0;
             Debug.WriteLine(text);
             await dialog.ShowAsync();
+            _currentDialog = null;
+
+        });
         }
 
         private async void ShowMsg(String text)
         {
+            if (_currentDialog != null)
+                return; // すでに開いているので何もしない
             var dialog = new ContentDialog
             {
                 Title = "成功",
@@ -510,7 +755,9 @@ namespace skininjector_v2
                 XamlRoot = App.MainWindow.Content.XamlRoot
 
             };
+            _currentDialog = dialog;
             await dialog.ShowAsync();
+            _currentDialog = null;
             InjectProgress.Value = 0;
         }
     }

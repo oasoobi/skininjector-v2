@@ -6,14 +6,12 @@ using WinRT;
 
 public static class WindowHelper
 {
-    // デリゲートをGCから保護するための静的リスト
     private static readonly Dictionary<IntPtr, SubclassProc> _subclassProcs = new();
 
     public static void SetMinSize(Window window, int minWidth, int minHeight)
     {
         var hwnd = window.As<IWindowNative>().WindowHandle;
 
-        // デリゲートを作成し、静的フィールドで保持
         SubclassProc proc = (hWnd, msg, wParam, lParam, uIdSubclass, dwRefData) =>
         {
             const int WM_GETMINMAXINFO = 0x0024;
@@ -27,19 +25,16 @@ public static class WindowHelper
                 int safeMinHeight = Math.Max(minHeight, 200);
                 mmi.ptMinTrackSize.x = (int)(safeMinWidth * scale);
                 mmi.ptMinTrackSize.y = (int)(safeMinHeight * scale);
-                Marshal.StructureToPtr(mmi, lParam, false); // true → false に変更
+                Marshal.StructureToPtr(mmi, lParam, false);
             }
             return DefSubclassProc(hWnd, msg, wParam, lParam);
         };
 
-        // デリゲートを保持してGCから保護
         _subclassProcs[hwnd] = proc;
 
-        // サブクラスを設定
         SetWindowSubclass(hwnd, proc, (UIntPtr)1, IntPtr.Zero);
     }
 
-    // ウィンドウを閉じる際にクリーンアップ(オプション)
     public static void RemoveMinSize(Window window)
     {
         var hwnd = window.As<IWindowNative>().WindowHandle;
@@ -47,7 +42,6 @@ public static class WindowHelper
         _subclassProcs.Remove(hwnd);
     }
 
-    // ---------------- Win32 API ----------------
     private delegate IntPtr SubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, IntPtr dwRefData);
 
     [DllImport("comctl32.dll", SetLastError = true)]
