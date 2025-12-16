@@ -426,7 +426,7 @@ namespace skininjector_v2
 
                 this.DisableUIElements();
 
-                Injector.ExecuteInjection(sourcePath, targetPath, EncryptCheckBox.IsChecked ?? true);
+                await Injector.ExecuteInjectionAsync(sourcePath, targetPath, EncryptCheckBox.IsChecked ?? true);
                 success = true;
             }
             catch (Exception ex)

@@ -15,7 +15,7 @@ namespace skininjector_v2
 
         public static Action<int>? OnProgress;
         public static Action<string>? OnError;
-        public static void ExecuteInjection(string sourcePath, string targetPath, bool isEncryptEnabled)
+        public static async Task ExecuteInjectionAsync(string sourcePath, string targetPath, bool isEncryptEnabled)
         {
             if (!TryValidateSkinPack(sourcePath, !isEncryptEnabled, out string error))
             {
@@ -23,24 +23,28 @@ namespace skininjector_v2
                 throw new Exception(error);
             }
             OnProgress?.Invoke(10);
+            await Task.Delay(50);
 
             Logger.Info("Skin pack validation succeeded. Proceeding with injection...");
 
-            CopyToTempFolder(sourcePath, targetPath);
+            await Task.Run(() => CopyToTempFolder(sourcePath, targetPath));
             OnProgress?.Invoke(30);
+            await Task.Delay(50);
 
 
             if (isEncryptEnabled)
             {
-                EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"));
+                await Task.Run(() => EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack")));
             }
             OnProgress?.Invoke(60);
+            await Task.Delay(50);
 
 
-            CleanupTargetFolder(targetPath);
+            await Task.Run(() => CleanupTargetFolder(targetPath));
             OnProgress?.Invoke(80);
+            await Task.Delay(50);
 
-            CopyToTargetFolder(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"), targetPath);
+            await Task.Run(() => CopyToTargetFolder(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"), targetPath));
             OnProgress?.Invoke(100);
 
             Logger.Info("Skin pack injection completed successfully.");
