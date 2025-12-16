@@ -35,7 +35,15 @@
                 <TextBox IsReadOnly="True" x:Name="ChangedPath" Width="800"></TextBox>
                 <Border/>
                 <StackPanel Width="800" Height="460" Margin="0 6 0 0" CornerRadius="4">
-                    <ListView x:Name="PackNameListView" ItemsSource="{Binding PackNameList}" ScrollViewer.VerticalScrollMode="Enabled" Height="460" SelectionChanged="TargetPackChanged">
+                    <TextBox x:Name="SearchBox" 
+                             PlaceholderText="パック名を検索..." 
+                             Margin="0 0 0 4"
+                             TextChanged="SearchBox_TextChanged"/>
+                    <ListView x:Name="PackNameListView" 
+                              ItemsSource="{Binding PackNameList}" 
+                              ScrollViewer.VerticalScrollMode="Enabled" 
+                              Height="420" 
+                              SelectionChanged="TargetPackChanged">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:PackInfo">
                                 <TextBlock Text="{Binding PackName}" RightTapped="PackItem_RightTapped"></TextBlock>
