@@ -35,7 +35,6 @@ namespace skininjector_v2
                 CopyDirectory(subDir, Path.Combine(destinationDir, dirName), excludeFileNames);
             }
         }
-
     }
 
 }

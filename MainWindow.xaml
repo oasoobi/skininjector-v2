@@ -7,7 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"    
-    Title="skininjector v2.0.5 Created by oasobi">
+    Title="skininjector v2.0.5b2 Created by oasobi">
 
     <Grid x:Name="DDFolder" AllowDrop="True" DragEnter="WindowDragEnter" Drop="WindowDrag">
         <Grid.RowDefinitions>
@@ -15,7 +15,7 @@
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid x:Name="TitleBar" Background="Transparent" Height="32">
-            <TextBlock Text="SkinInjector v2.0.5b Created by oasobi"
+            <TextBlock Text="SkinInjector v2.0.5b2 Created by oasobi"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Grid>
         <Grid Width="1000" Height="600" Grid.Row="1">
@@ -35,10 +35,22 @@
                 <TextBox IsReadOnly="True" x:Name="ChangedPath" Width="800"></TextBox>
                 <Border/>
                 <StackPanel Width="800" Height="460" Margin="0 6 0 0" CornerRadius="4">
-                    <TextBox x:Name="SearchBox" 
-                             PlaceholderText="パック名を検索..." 
-                             Margin="0 0 0 4"
-                             TextChanged="SearchBox_TextChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0 0 0 4">
+                        <TextBox x:Name="SearchBox" 
+                                 PlaceholderText="パック名を検索..." 
+                                 Width="761"
+                                 Margin="0 0 5 0"
+                                 TextChanged="SearchBox_TextChanged"/>
+                        <Button x:Name="ReloadBtn" 
+                                Click="ReloadSkinPackList" 
+                                Margin="0 0 0 0"
+                                Padding="0 0 0 0"
+                                Width="32" 
+                                Height="32"
+                                ToolTipService.ToolTip="一覧を更新">
+                            <FontIcon Glyph="&#xE72C;" FontSize="12"/>
+                        </Button>
+                    </StackPanel>
                     <ListView x:Name="PackNameListView" 
                               ItemsSource="{Binding PackNameList}" 
                               ScrollViewer.VerticalScrollMode="Enabled" 

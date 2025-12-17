@@ -578,6 +578,11 @@ namespace skininjector_v2
             isTargetPackSelected = false;
             DeleteSkinDataBtn.IsEnabled = false;
         }
+
+        private void ReloadSkinPackList(object sender, RoutedEventArgs e)
+        {
+            UpdateSkinPackList();
+        }
     }
 
     public class PackInfo
