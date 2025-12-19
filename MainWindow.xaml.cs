@@ -50,9 +50,9 @@ namespace skininjector_v2
         public MainWindow()
         {
             this.InitializeComponent();
-            Debug.WriteLine("起動した。");
 
             WindowHelper.SetMinSize(this, 1000, 700);
+
             EditionChangedBox.SelectedIndex = -1;
             EditionChangedBox.IsEnabled = false;
             InjectProgress.Value = 0;
@@ -89,28 +89,30 @@ namespace skininjector_v2
                 acrylicController.SetSystemBackdropConfiguration(backdropConfiguration);
                 acrylicController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
 
-                AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
-                AppWindow.TitleBar.BackgroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-                SetTitleBar(TitleBar);
-
-
             }
+
+            AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+            AppWindow.TitleBar.BackgroundColor = Colors.Transparent;
+            AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+            AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+            SetTitleBar(TitleBar);
         }
 
         private List<PackInfo> GetAllSkinPackData()
         {
             if (currentTargetPath == "")
             {
+                Logger.Info("Detecting Minecraft skin pack paths...");
                 if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH)))
                 {
+                    Logger.Info("Found legacy Minecraft Preview skin pack path.");
                     currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH);
                     isExistMinecraftPreview = true;
                     isPreviewLegacy = true;
                 }
                 else if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH)))
                 {
+                    Logger.Info("Found Minecraft Preview skin pack path.");
                     currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
                     isExistMinecraftPreview = true;
                     isPreviewLegacy = false;
@@ -119,18 +121,20 @@ namespace skininjector_v2
 
                 if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH)))
                 {
+                    Logger.Info("Found legacy Minecraft skin pack path.");
                     currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH);
                     isExistMinecraft = true;
                     isMinecraftLegacy = true;
                 }
                 else
-                if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PATH)))
-                {
-                    currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
-                    isExistMinecraft = true;
-                    isMinecraftLegacy = false;
+                    if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PATH)))
+                    {
+                        Logger.Info("Found Minecraft skin pack path.");
+                        currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                        isExistMinecraft = true;
+                        isMinecraftLegacy = false;
+                    }
 
-                }
                 MinecraftEdtionBoxItem.IsEnabled = isExistMinecraft;
                 MinecraftPreviewEdtionBoxItem.IsEnabled = isExistMinecraftPreview;
                 if (isExistMinecraft && isExistMinecraftPreview)
@@ -145,74 +149,87 @@ namespace skininjector_v2
                 {
                     EditionChangedBox.SelectedIndex = 1;
                 }
+                if (!isExistMinecraft && !isExistMinecraftPreview)
+                {
+                    Logger.Error("Minecraft skin pack path not found.");
+                    ShowErrorMsg("Minecraftが見つかりませんでした。インストールされているかを確認してください。");
+                }
             }
+
             string targetPath = currentTargetPath;
 
             var packList = new List<PackInfo>();
 
             var subFolders = Directory.GetDirectories(targetPath);
 
+            Logger.Info("Getting All Skinpacks...");
             foreach (var subFolder in subFolders)
             {
                 string manifestPath = System.IO.Path.Combine(subFolder, "manifest.json");
+                Logger.Info($"Checking skinpack in folder: {subFolder}");
 
+                if (!File.Exists(manifestPath)) continue;
 
-                if (File.Exists(manifestPath))
+                try
                 {
-                    try
-                    {
-                        string content = File.ReadAllText(manifestPath);
-                        var json = JsonObject.Parse(content);
-                        if (JsonObject.Parse(content) == null)
-                        {
-                            continue;
-                        }
-                        string? packName = json["header"]?["name"]?.ToString();
-                        if (packName != null)
-                        {
-                            packName = packName.Replace("\n", "").Replace("\r", "");
-                            string textsFolder = System.IO.Path.Combine(subFolder, "texts");
-                            if (Directory.Exists(textsFolder))
-                            {
-                                string japaneseFilePath = System.IO.Path.Combine(textsFolder, "ja_JP.lang");
-                                string englishFilePath = System.IO.Path.Combine(textsFolder, "en_US.lang");
-                                Regex regex = new Regex(@"^skinpack\.[^=\s]+=(.*\S.*)$", RegexOptions.Multiline);
-                                if (File.Exists(japaneseFilePath))
-                                {
-                                    var text = File.ReadAllText(japaneseFilePath).ToString();
-                                    MatchCollection matches = regex.Matches(text);
-                                    if (matches.Count > 0)
-                                    {
-                                        packName = matches[0].Groups[1].Value.Trim();
-                                    }
-                                }
-                                else if (File.Exists(englishFilePath))
-                                {
-                                    var text = File.ReadAllText(englishFilePath).ToString();
-                                    MatchCollection matches = regex.Matches(text);
-                                    if (matches.Count > 0)
-                                    {
-                                        packName = matches[0].Groups[1].Value.Trim();
-                                    }
-                                }
-                            }
-                            packList.Add(new PackInfo
-                            {
-                                FolderPath = subFolder,
-                                PackName = packName
-                            });
-                        }
-                        else
-                        {
-                            packName = "Unknown";
-                        }
+                    string content = File.ReadAllText(manifestPath);
+                    var json = JsonObject.Parse(content);
+                    if (content == null || json == null) continue;
 
-                    }
-                    catch (Exception ex)
+                    string? packName = json["header"]?["name"]?.GetValue<string>();
+                    if (packName == null)
                     {
-                        Console.WriteLine(ex);
-                        return packList;
+                        packName = "Unknown";
+                        packList.Add(new PackInfo
+                        {
+                            FolderPath = subFolder,
+                            PackName = packName
+                        });
+                        Logger.Info("Pack name not found in manifest, skipping...");
+                        continue;
                     }
+
+                    packName = packName.Replace("\n", "").Replace("\r", "");
+                    string textsFolder = System.IO.Path.Combine(subFolder, "texts");
+                    if (Directory.Exists(textsFolder))
+                    {
+                        Logger.Info("Looking for localized pack name...");
+                        string japaneseFilePath = System.IO.Path.Combine(textsFolder, "ja_JP.lang");
+                        string englishFilePath = System.IO.Path.Combine(textsFolder, "en_US.lang");
+                        Regex regex = new(@"^skinpack\.[^=\s]+=(.*\S.*)$", RegexOptions.Multiline);
+                        if (File.Exists(japaneseFilePath))
+                        {
+                            var text = File.ReadAllText(japaneseFilePath).ToString();
+                            Logger.Info("Found Japanese localization file.");
+                            MatchCollection matches = regex.Matches(text);
+                            if (matches.Count > 0)
+                            {
+                                packName = matches[0].Groups[1].Value.Trim();
+                                Logger.Info("Using Japanese localized pack name: " + packName);
+                            }
+                        }
+                        else if (File.Exists(englishFilePath))
+                        {
+                            var text = File.ReadAllText(englishFilePath).ToString();
+                            MatchCollection matches = regex.Matches(text);
+                            if (matches.Count > 0)
+                            {
+                                packName = matches[0].Groups[1].Value.Trim();
+                                Logger.Info("Using English localized pack name: " + packName);
+                            }
+                        }
+                    }
+                    Logger.Info($"Found pack: {packName}");
+                    packList.Add(new PackInfo
+                    {
+                        FolderPath = subFolder,
+                        PackName = packName
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(manifestPath + " is invalid: " + ex.Message);
+                    return packList;
                 }
             }
             return packList;
@@ -308,8 +325,7 @@ namespace skininjector_v2
                 else
                 {
                     ChangedPath.Text = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
-                    currentTargetPath = Environment.ExpandEnvironmentVariables(
-                        isPreviewLegacy ? LEGACY_MINECRAFT_PREVIEW_PATH : MINECRAFT_PREVIEW_PATH);
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(isPreviewLegacy ? LEGACY_MINECRAFT_PREVIEW_PATH : MINECRAFT_PREVIEW_PATH);
                 }
 
                 try
@@ -414,7 +430,7 @@ namespace skininjector_v2
             try
             {
                 string currentDiretory = Directory.GetCurrentDirectory();
-                
+
                 string sourcePath = SelectedSkinPackPathBox.Text;
                 string? targetPath = PackNameList_[PackNameListView.SelectedIndex]?.FolderPath;
 

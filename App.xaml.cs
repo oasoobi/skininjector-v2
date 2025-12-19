@@ -35,6 +35,7 @@ namespace skininjector_v2
             var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(m_window); // Window のハンドルを取得
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            appWindow.SetIcon("Assets/AppLogo.ico");
             appWindow.Resize(new Windows.Graphics.SizeInt32(1000, 700));
             var presneter = Microsoft.UI.Windowing.OverlappedPresenter.Create();
             appWindow.SetPresenter(presneter);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 
 public static class Logger
@@ -23,6 +24,7 @@ public static class Logger
         {
             // コンソール
             Console.WriteLine(log);
+            Debug.WriteLine(log);
 
             // ファイル
             File.AppendAllText(LogFilePath, log + Environment.NewLine);
