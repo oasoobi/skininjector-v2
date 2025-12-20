@@ -5,7 +5,7 @@ using System.IO;
 public static class Logger
 {
     private static readonly object _lock = new();
-    private static readonly string LogFilePath = "skin_validator.log";
+    private static readonly string LogFilePath = "skininjector.log";
 
     public static void Info(string message)
         => Write("INFO", message);

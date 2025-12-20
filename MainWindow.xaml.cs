@@ -103,37 +103,35 @@ namespace skininjector_v2
             if (currentTargetPath == "")
             {
                 Logger.Info("Detecting Minecraft skin pack paths...");
-                if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH)))
-                {
-                    Logger.Info("Found legacy Minecraft Preview skin pack path.");
-                    currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH);
-                    isExistMinecraftPreview = true;
-                    isPreviewLegacy = true;
-                }
-                else if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH)))
+                
+                if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH)))
                 {
                     Logger.Info("Found Minecraft Preview skin pack path.");
                     currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PREVIEW_PATH);
                     isExistMinecraftPreview = true;
                     isPreviewLegacy = false;
 
+                } else if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH)))
+                {
+                    Logger.Info("Found legacy Minecraft Preview skin pack path.");
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PREVIEW_PATH);
+                    isExistMinecraftPreview = true;
+                    isPreviewLegacy = true;
                 }
 
-                if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH)))
+                if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PATH)))
+                {
+                    Logger.Info("Found Minecraft skin pack path.");
+                    currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
+                    isExistMinecraft = true;
+                    isMinecraftLegacy = false;
+                } else if (Directory.Exists(Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH)))
                 {
                     Logger.Info("Found legacy Minecraft skin pack path.");
                     currentTargetPath = Environment.ExpandEnvironmentVariables(LEGACY_MINECRAFT_PATH);
                     isExistMinecraft = true;
                     isMinecraftLegacy = true;
                 }
-                else
-                    if (Directory.Exists(Environment.ExpandEnvironmentVariables(MINECRAFT_PATH)))
-                    {
-                        Logger.Info("Found Minecraft skin pack path.");
-                        currentTargetPath = Environment.ExpandEnvironmentVariables(MINECRAFT_PATH);
-                        isExistMinecraft = true;
-                        isMinecraftLegacy = false;
-                    }
 
                 MinecraftEdtionBoxItem.IsEnabled = isExistMinecraft;
                 MinecraftPreviewEdtionBoxItem.IsEnabled = isExistMinecraftPreview;
