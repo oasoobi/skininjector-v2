@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation.Diagnostics;
 namespace skininjector_v2
@@ -27,44 +28,43 @@ namespace skininjector_v2
 
             Logger.Info("Skin pack validation succeeded. Proceeding with injection...");
 
-            await Task.Run(() => CopyToTempFolder(sourcePath, targetPath));
+            await CopyToTempFolder(sourcePath, targetPath);
             OnProgress?.Invoke(30);
-            await Task.Delay(50);
-
 
             if (isEncryptEnabled)
             {
                 await Task.Run(() => EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack")));
             }
             OnProgress?.Invoke(60);
-            await Task.Delay(50);
 
-
-            await Task.Run(() => CleanupTargetFolder(targetPath));
+            await CleanupTargetFolder(targetPath);
             OnProgress?.Invoke(80);
-            await Task.Delay(50);
 
-            await Task.Run(() => CopyToTargetFolder(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"), targetPath));
+            await CopyToTargetFolder(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"), targetPath);
             OnProgress?.Invoke(100);
 
             Logger.Info("Skin pack injection completed successfully.");
         }
 
-        public static void CopyToTempFolder(string sourcePath, string targetPath)
+        public static async Task CopyToTempFolder(string sourcePath, string targetPath)
         {
-            string currentDiretory = Directory.GetCurrentDirectory();
-            string tempPath = Path.Combine(currentDiretory, "skinpack");
-            
+            string tempPath = Path.Combine(Directory.GetCurrentDirectory(), "skinpack");
+
             if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
 
             foreach (var dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
             {
                 Directory.CreateDirectory(dirPath.Replace(sourcePath, tempPath));
+                await Task.Yield();
             }
             foreach (var newPath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
             {
                 string fileName = Path.GetFileName(newPath);
-                if (fileName != "manifest.json" ) File.Copy(newPath, newPath.Replace(sourcePath, tempPath), true);
+
+                if (fileName != "manifest.json") {
+                    File.Copy(newPath, newPath.Replace(sourcePath, tempPath), true);
+                    await Task.Yield();
+                } 
             }
             Logger.Info($"Copied skin pack to temporary folder: {tempPath}");
 
@@ -72,6 +72,7 @@ namespace skininjector_v2
             if (File.Exists(targetDiretoryManifestPath))
             {
                 File.Copy(targetDiretoryManifestPath, Path.Combine(tempPath, "manifest.json"), true);
+                await Task.Yield();
                 Logger.Info("Copied existing manifest.json to temporary folder.");
             }
             else
@@ -102,27 +103,73 @@ namespace skininjector_v2
             encript.WaitForExit();
         }
 
-        public static void CleanupTargetFolder(string targetPath)
+        public async static Task CleanupTargetFolder(string targetPath)
         {
-            if (Directory.Exists(targetPath))
+            Logger.Info($"[Delete] Start cleanup: {targetPath}");
+
+            if (!Directory.Exists(targetPath))
             {
-                Directory.Delete(targetPath, true);
-                Logger.Info($"Cleaned up target folder: {targetPath}");
+                Logger.Warn($"[Delete] Target path does not exist: {targetPath}");
+                return;
             }
+
+            // 直下ファイル削除
+            foreach (var filePath in Directory.GetFiles(targetPath))
+            {
+                string fileName = Path.GetFileName(filePath);
+
+                try
+                {
+                    Logger.Info($"[Delete] Deleting file: {fileName}");
+
+                    File.SetAttributes(filePath, FileAttributes.Normal);
+                    File.Delete(filePath);
+                    await Task.Yield();
+                    Logger.Info($"[Delete] Deleted file: {fileName}");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"[Delete] Failed to delete file: {fileName}. ${ex}");
+                }
+            }
+
+            // サブディレクトリ削除
+            foreach (var subDir in Directory.GetDirectories(targetPath))
+            {
+                string dirName = Path.GetFileName(subDir);
+
+                try
+                {
+                    Logger.Info($"[Delete] Deleting directory: {dirName}");
+
+                    Directory.Delete(subDir, true);
+                    await Task.Yield();
+
+                    Logger.Info($"[Delete] Deleted directory: {dirName}");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"[Delete] Failed to delete directory: {dirName}. ${ex}");
+                }
+            }
+
+            Logger.Info($"[Delete] Cleanup finished: {targetPath}");
         }
 
-        public static void CopyToTargetFolder(string tempPath, string targetPath)
+
+
+        public static async Task CopyToTargetFolder(string tempPath, string targetPath)
         {
-            foreach (var dirPath in Directory.GetDirectories(tempPath, "*", SearchOption.AllDirectories))
+            foreach (var filePath in Directory.GetFiles(tempPath))
             {
-                Directory.CreateDirectory(dirPath.Replace(tempPath, targetPath));
-            }
-            foreach (var newPath in Directory.GetFiles(tempPath, "*.*", SearchOption.AllDirectories))
-            {
-                File.Copy(newPath, newPath.Replace(tempPath, targetPath), true);
+                string fileName = Path.GetFileName(filePath);
+                string destFilePath = Path.Combine(targetPath, fileName);
+                File.Copy(filePath, destFilePath);
+                await Task.Yield();
             }
             Logger.Info($"Copied skin pack to target folder: {targetPath}");
         }
+
 
         public static bool TryValidateSkinPack(string packPath, bool isEncrypted, out string error)
         {
@@ -130,7 +177,7 @@ namespace skininjector_v2
             error = "";
 
             if (!Directory.Exists(packPath)) error = "Pack directory does not exist.";
-            
+
             string manifestPath = Path.Combine(packPath, "manifest.json");
             string skinsJsonPath = Path.Combine(packPath, "skins.json");
 
@@ -144,9 +191,10 @@ namespace skininjector_v2
 
             if (!IsSkinValid(skinsJsonPath)) error = "skins.json content is invalid.";
 
-            if (error != "") {
+            if (error != "")
+            {
                 Logger.Error(error);
-                return false; 
+                return false;
             }
 
             return true;
