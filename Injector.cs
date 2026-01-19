@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation.Diagnostics;
@@ -30,25 +31,28 @@ namespace skininjector_v2
 
             await CopyToTempFolder(sourcePath, targetPath);
             OnProgress?.Invoke(30);
+            await Task.Delay(50);
 
             if (isEncryptEnabled)
             {
                 await Task.Run(() => EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack")));
             }
-            OnProgress?.Invoke(60);
-
-            await CleanupTargetFolder(targetPath);
             OnProgress?.Invoke(80);
 
-            await CopyToTargetFolder(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"), targetPath);
+            SwapSkinPack(
+                Path.Combine(Directory.GetCurrentDirectory(), "skinpack"),
+                targetPath
+            );
+            await Task.Delay(50);
             OnProgress?.Invoke(100);
-
             Logger.Info("Skin pack injection completed successfully.");
         }
 
         public static async Task CopyToTempFolder(string sourcePath, string targetPath)
         {
             string tempPath = Path.Combine(Directory.GetCurrentDirectory(), "skinpack");
+
+            Logger.Info(tempPath);
 
             if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
 
@@ -80,6 +84,58 @@ namespace skininjector_v2
                 Logger.Error("No existing manifest.json found in target directory.");
                 throw new Exception("No existing manifest json found in target directory.");
             }
+
+            var GetPackTranslateName = new Regex(@"^^skinpack\.[^.=\s]+(?!\.by)=(.+)$");
+
+            string targetDiretoryLanguagePath = Path.Combine(targetPath, "texts/en_US.lang");
+
+            Logger.Info($"Looking for language file at: {targetDiretoryLanguagePath}");
+
+            if (File.Exists(targetDiretoryLanguagePath))
+            {
+                var targetLines = await File.ReadAllLinesAsync(targetDiretoryLanguagePath);
+                string? skinpackName = null;
+
+                foreach (var line in targetLines)
+                {
+                    if (line.StartsWith("skinpack.") && !line.Contains(".by="))
+                    {
+                        var parts = line.Split('=', 2);
+                        if (parts.Length == 2)
+                        {
+                            skinpackName = parts[1];
+                            break;
+                        }
+                    }
+                }
+
+                string tempLanguageDir = Path.Combine(tempPath, "texts");
+
+                if (skinpackName == null)
+                {
+                    throw new Exception("skinpack name not found in target lang");
+                }
+                var skinpackLineRegex = new Regex(@"^skinpack\.(?!.*\.by=)[^=]+=.+");
+
+                foreach (var langFile in Directory.GetFiles(tempLanguageDir, "*.lang"))
+                {
+                    var lines = await File.ReadAllLinesAsync(langFile);
+                    var updated = lines.Select(line =>
+                    {
+                        if (skinpackLineRegex.IsMatch(line))
+                        {
+                            var key = line.Split('=', 2)[0];
+                            return $"{key}={skinpackName}";
+                        }
+                        return line;
+                    }).ToArray(); ;
+                    await File.WriteAllLinesAsync(langFile, updated);
+                }
+            }
+            else
+            {
+                Logger.Warn("No existing en_US.lang found in target directory.");
+            }
         }
 
         public static void EncryptSkinPack(string tempPath)
@@ -103,60 +159,24 @@ namespace skininjector_v2
             encript.WaitForExit();
         }
 
-        public async static Task CleanupTargetFolder(string targetPath)
+        public static void SwapSkinPack(string preparedPath, string targetPath)
         {
-            Logger.Info($"[Delete] Start cleanup: {targetPath}");
+            string backupPath = targetPath + "_old_" + Guid.NewGuid();
 
-            if (!Directory.Exists(targetPath))
+            if (Directory.Exists(targetPath))
             {
-                Logger.Warn($"[Delete] Target path does not exist: {targetPath}");
-                return;
+                Directory.Move(targetPath, backupPath);
             }
 
-            // 直下ファイル削除
-            foreach (var filePath in Directory.GetFiles(targetPath))
+            Directory.Move(preparedPath, targetPath);
+
+            // 後始末（失敗しても致命傷じゃない）
+            try
             {
-                string fileName = Path.GetFileName(filePath);
-
-                try
-                {
-                    Logger.Info($"[Delete] Deleting file: {fileName}");
-
-                    File.SetAttributes(filePath, FileAttributes.Normal);
-                    File.Delete(filePath);
-                    await Task.Yield();
-                    Logger.Info($"[Delete] Deleted file: {fileName}");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error($"[Delete] Failed to delete file: {fileName}. ${ex}");
-                }
+                Directory.Delete(backupPath, true);
             }
-
-            // サブディレクトリ削除
-            foreach (var subDir in Directory.GetDirectories(targetPath))
-            {
-                string dirName = Path.GetFileName(subDir);
-
-                try
-                {
-                    Logger.Info($"[Delete] Deleting directory: {dirName}");
-
-                    Directory.Delete(subDir, true);
-                    await Task.Yield();
-
-                    Logger.Info($"[Delete] Deleted directory: {dirName}");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error($"[Delete] Failed to delete directory: {dirName}. ${ex}");
-                }
-            }
-
-            Logger.Info($"[Delete] Cleanup finished: {targetPath}");
+            catch { }
         }
-
-
 
         public static async Task CopyToTargetFolder(string tempPath, string targetPath)
         {
