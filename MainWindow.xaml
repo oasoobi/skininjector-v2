@@ -7,7 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"    
-    Title="skininjector v2.0.6 Created by oasobi">
+    Title="skininjector v2.0.7 Created by oasobi">
 
     <Grid x:Name="DDFolder" AllowDrop="True" DragEnter="WindowDragEnter" Drop="WindowDrag">
         <Grid.RowDefinitions>
@@ -15,7 +15,7 @@
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid x:Name="TitleBar" Background="Transparent" Height="32">
-            <TextBlock Text="SkinInjector v2.0.6 Created by oasobi"
+            <TextBlock Text="SkinInjector v2.0.7 Created by oasobi"
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Grid>
         <Grid Width="1000" Height="600" Grid.Row="1">
