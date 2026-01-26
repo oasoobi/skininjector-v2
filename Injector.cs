@@ -17,9 +17,11 @@ namespace skininjector_v2
 
         public static Action<int>? OnProgress;
         public static Action<string>? OnError;
+        public static Func<string, Task<bool>>? OnConfirm;
         public static async Task ExecuteInjectionAsync(string sourcePath, string targetPath, bool isEncryptEnabled)
         {
-            if (!TryValidateSkinPack(sourcePath, !isEncryptEnabled, out string error))
+            var (isValid, error) = await TryValidateSkinPackAsync(sourcePath, !isEncryptEnabled);
+            if (!isValid)
             {
                 Logger.Error("Skin pack validation failed. Injection aborted.");
                 throw new Exception(error);
@@ -191,10 +193,10 @@ namespace skininjector_v2
         }
 
 
-        public static bool TryValidateSkinPack(string packPath, bool isEncrypted, out string error)
+        public static async Task<(bool isValid, string error)> TryValidateSkinPackAsync(string packPath, bool isEncrypted)
         {
             Debug.WriteLine(isEncrypted);
-            error = "";
+            string error = "";
 
             if (!Directory.Exists(packPath)) error = "Pack directory does not exist.";
 
@@ -205,19 +207,19 @@ namespace skininjector_v2
             if (!IsJsonValid(manifestPath)) error = "manifest.json is invalid.";
             if (!File.Exists(skinsJsonPath)) error = "skins.json does not exist.";
 
-            if (isEncrypted) return true;
+            if (isEncrypted) return (true, "");
 
             if (!IsJsonValid(skinsJsonPath)) error = "skins.json is invalid.";
 
-            if (!IsSkinValid(skinsJsonPath)) error = "skins.json content is invalid.";
+            if (!await IsSkinValidAsync(skinsJsonPath)) error = "skins.json content is invalid.";
 
             if (error != "")
             {
                 Logger.Error(error);
-                return false;
+                return (false, error);
             }
 
-            return true;
+            return (true, "");
         }
 
         private static bool IsJsonValid(string jsonPath)
@@ -234,13 +236,16 @@ namespace skininjector_v2
             }
         }
 
-        private static bool IsSkinValid(string skinsJsonPath)
+        private static async Task<bool> IsSkinValidAsync(string skinsJsonPath)
         {
             if (!File.Exists(skinsJsonPath))
                 throw new Exception("Skins Json does not exists.");
 
             string jsonContent = File.ReadAllText(skinsJsonPath);
             string baseDir = Path.GetDirectoryName(skinsJsonPath)!;
+
+            var validCount = 0;
+            var warnings = new List<string>();
 
             try
             {
@@ -261,16 +266,20 @@ namespace skininjector_v2
                         string.IsNullOrWhiteSpace(s.Texture) ||
                         string.IsNullOrWhiteSpace(s.Type))
                     {
-                        Logger.Error($"Skin[{i}] missing required fields.");
-                        return false;
+                        var msg = $"Skin[{i}] missing required fields.";
+                        Logger.Warn(msg);
+                        warnings.Add(msg);
+                        continue;
                     }
 
                     // texture
                     string texturePath = Path.Combine(baseDir, s.Texture);
                     if (!File.Exists(texturePath))
                     {
-                        Logger.Error($"Skin[{i}] texture not found: {s.Texture}");
-                        return false;
+                        var msg = $"Skin{i} texture not found: {s.Texture}";
+                        Logger.Warn(msg);
+                        warnings.Add(msg);
+                        continue;
                     }
 
                     // cape（任意）
@@ -279,13 +288,38 @@ namespace skininjector_v2
                         string capePath = Path.Combine(baseDir, s.Cape);
                         if (!File.Exists(capePath))
                         {
-                            Logger.Error($"Skin[{i}] cape not found: {s.Cape}");
-                            return false;
+                            var msg = $"Skin[{i}] cape not found: {s.Cape}";
+                            Logger.Warn(msg);
+                            warnings.Add(msg);
+                            continue;
                         }
+                    }
+
+                    validCount++;
+                }
+
+                if (validCount <= 0)
+                {
+                    Logger.Error("No valid skins found in skins.json.");
+                    return false;
+                }
+
+                Logger.Info($"Total valid skins found: {validCount}");
+                Logger.Info($"Total skins processed: {data.Skins.Length}");
+                Logger.Info("skins.json content is valid.");
+
+                // 警告がある場合はダイアログで続けるかを選択
+                if (warnings.Count > 0 && OnConfirm != null)
+                {
+                    var warningMessage = $"以下の警告があります:\n\n{string.Join("\n", warnings)}\n\n有効なスキン: {validCount}/{data.Skins.Length}\n\n続行しますか？";
+                    var shouldContinue = await OnConfirm(warningMessage);
+                    if (!shouldContinue)
+                    {
+                        Logger.Info("User cancelled injection due to warnings.");
+                        return false;
                     }
                 }
 
-                Logger.Info("skins.json validation succeeded.");
                 return true;
             }
             catch (JsonException ex)

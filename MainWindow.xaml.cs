@@ -50,9 +50,9 @@ namespace skininjector_v2
         public MainWindow()
         {
             this.InitializeComponent();
+            Debug.WriteLine("起動した。");
 
             WindowHelper.SetMinSize(this, 1000, 700);
-
             EditionChangedBox.SelectedIndex = -1;
             EditionChangedBox.IsEnabled = false;
             InjectProgress.Value = 0;
@@ -72,6 +72,25 @@ namespace skininjector_v2
             Injector.OnError = message =>
             {
                 _ = DispatcherQueue.TryEnqueue(() => ShowErrorMsg(message));
+            };
+
+            Injector.OnConfirm = async (message) =>
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                _ = DispatcherQueue.TryEnqueue(async () =>
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "警告",
+                        Content = message,
+                        PrimaryButtonText = "続行",
+                        CloseButtonText = "キャンセル",
+                        XamlRoot = App.MainWindow.Content.XamlRoot
+                    };
+                    var result = await dialog.ShowAsync();
+                    tcs.SetResult(result == ContentDialogResult.Primary);
+                });
+                return await tcs.Task;
             };
         }
 
