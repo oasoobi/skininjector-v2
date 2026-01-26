@@ -50,9 +50,9 @@ namespace skininjector_v2
         public MainWindow()
         {
             this.InitializeComponent();
+            Debug.WriteLine("起動した。");
 
             WindowHelper.SetMinSize(this, 1000, 700);
-
             EditionChangedBox.SelectedIndex = -1;
             EditionChangedBox.IsEnabled = false;
             InjectProgress.Value = 0;
@@ -72,6 +72,25 @@ namespace skininjector_v2
             Injector.OnError = message =>
             {
                 _ = DispatcherQueue.TryEnqueue(() => ShowErrorMsg(message));
+            };
+
+            Injector.OnConfirm = async (message) =>
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                _ = DispatcherQueue.TryEnqueue(async () =>
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "警告",
+                        Content = message,
+                        PrimaryButtonText = "続行",
+                        CloseButtonText = "キャンセル",
+                        XamlRoot = App.MainWindow.Content.XamlRoot
+                    };
+                    var result = await dialog.ShowAsync();
+                    tcs.SetResult(result == ContentDialogResult.Primary);
+                });
+                return await tcs.Task;
             };
         }
 
@@ -405,7 +424,9 @@ namespace skininjector_v2
 
         private async void Inject(object sender, RoutedEventArgs e)
         {
-            if (!isPathSelected)
+            var packInfo = PackNameListView.SelectedItem as PackInfo;
+
+            if (!isPathSelected || packInfo == null || packInfo?.FolderPath == null)
             {
                 this.ShowErrorMsg("置き換え先のスキンパックが選択されていません。");
                 return;
@@ -416,13 +437,16 @@ namespace skininjector_v2
                 this.ShowErrorMsg("置き換え元のスキンパックが選択されていません。");
                 return;
             }
+            
 
-            if (!Directory.Exists(SelectedSkinPackPathBox.Text))
+            if (!Directory.Exists(packInfo.FolderPath))
             {
                 this.ShowErrorMsg("置き換え先のスキンパックのパスが存在しません。");
                 InjectProgress.Value = 0;
                 return;
             }
+
+            string? targetPath = packInfo.FolderPath;
 
             bool success = false;
             try
@@ -430,7 +454,6 @@ namespace skininjector_v2
                 string currentDiretory = Directory.GetCurrentDirectory();
 
                 string sourcePath = SelectedSkinPackPathBox.Text;
-                string? targetPath = PackNameList_[PackNameListView.SelectedIndex]?.FolderPath;
 
                 if (targetPath == null)
                 {
@@ -465,6 +488,7 @@ namespace skininjector_v2
             EditionChangedBox.IsEnabled = false;
             InjectBtn.IsEnabled = false;
             DeleteSkinDataBtn.IsEnabled = false;
+            SearchBox.IsEnabled = false;
         }
 
         private void EnableUIElements()
@@ -476,6 +500,7 @@ namespace skininjector_v2
             EditionChangedBox.IsEnabled = isExistMinecraft && isExistMinecraftPreview;
             InjectBtn.IsEnabled = true;
             DeleteSkinDataBtn.IsEnabled = true;
+            SearchBox.IsEnabled = true;
         }
 
         private async void SelectSkinPackFolder(object sender, RoutedEventArgs e)

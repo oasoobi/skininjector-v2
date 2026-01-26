@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation.Diagnostics;
 namespace skininjector_v2
@@ -15,9 +17,11 @@ namespace skininjector_v2
 
         public static Action<int>? OnProgress;
         public static Action<string>? OnError;
+        public static Func<string, Task<bool>>? OnConfirm;
         public static async Task ExecuteInjectionAsync(string sourcePath, string targetPath, bool isEncryptEnabled)
         {
-            if (!TryValidateSkinPack(sourcePath, !isEncryptEnabled, out string error))
+            var (isValid, error) = await TryValidateSkinPackAsync(sourcePath, !isEncryptEnabled);
+            if (!isValid)
             {
                 Logger.Error("Skin pack validation failed. Injection aborted.");
                 throw new Exception(error);
@@ -27,44 +31,46 @@ namespace skininjector_v2
 
             Logger.Info("Skin pack validation succeeded. Proceeding with injection...");
 
-            await Task.Run(() => CopyToTempFolder(sourcePath, targetPath));
+            await CopyToTempFolder(sourcePath, targetPath);
             OnProgress?.Invoke(30);
             await Task.Delay(50);
-
 
             if (isEncryptEnabled)
             {
                 await Task.Run(() => EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack")));
             }
-            OnProgress?.Invoke(60);
-            await Task.Delay(50);
-
-
-            await Task.Run(() => CleanupTargetFolder(targetPath));
             OnProgress?.Invoke(80);
+
+            SwapSkinPack(
+                Path.Combine(Directory.GetCurrentDirectory(), "skinpack"),
+                targetPath
+            );
             await Task.Delay(50);
-
-            await Task.Run(() => CopyToTargetFolder(Path.Combine(Directory.GetCurrentDirectory(), "skinpack"), targetPath));
             OnProgress?.Invoke(100);
-
             Logger.Info("Skin pack injection completed successfully.");
         }
 
-        public static void CopyToTempFolder(string sourcePath, string targetPath)
+        public static async Task CopyToTempFolder(string sourcePath, string targetPath)
         {
-            string currentDiretory = Directory.GetCurrentDirectory();
-            string tempPath = Path.Combine(currentDiretory, "skinpack");
-            
+            string tempPath = Path.Combine(Directory.GetCurrentDirectory(), "skinpack");
+
+            Logger.Info(tempPath);
+
             if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
 
             foreach (var dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
             {
                 Directory.CreateDirectory(dirPath.Replace(sourcePath, tempPath));
+                await Task.Yield();
             }
             foreach (var newPath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
             {
                 string fileName = Path.GetFileName(newPath);
-                if (fileName != "manifest.json" ) File.Copy(newPath, newPath.Replace(sourcePath, tempPath), true);
+
+                if (fileName != "manifest.json") {
+                    File.Copy(newPath, newPath.Replace(sourcePath, tempPath), true);
+                    await Task.Yield();
+                } 
             }
             Logger.Info($"Copied skin pack to temporary folder: {tempPath}");
 
@@ -72,12 +78,65 @@ namespace skininjector_v2
             if (File.Exists(targetDiretoryManifestPath))
             {
                 File.Copy(targetDiretoryManifestPath, Path.Combine(tempPath, "manifest.json"), true);
+                await Task.Yield();
                 Logger.Info("Copied existing manifest.json to temporary folder.");
             }
             else
             {
                 Logger.Error("No existing manifest.json found in target directory.");
                 throw new Exception("No existing manifest json found in target directory.");
+            }
+
+            var GetPackTranslateName = new Regex(@"^^skinpack\.[^.=\s]+(?!\.by)=(.+)$");
+
+            string targetDiretoryLanguagePath = Path.Combine(targetPath, "texts/en_US.lang");
+
+            Logger.Info($"Looking for language file at: {targetDiretoryLanguagePath}");
+
+            if (File.Exists(targetDiretoryLanguagePath))
+            {
+                var targetLines = await File.ReadAllLinesAsync(targetDiretoryLanguagePath);
+                string? skinpackName = null;
+
+                foreach (var line in targetLines)
+                {
+                    if (line.StartsWith("skinpack.") && !line.Contains(".by="))
+                    {
+                        var parts = line.Split('=', 2);
+                        if (parts.Length == 2)
+                        {
+                            skinpackName = parts[1];
+                            break;
+                        }
+                    }
+                }
+
+                string tempLanguageDir = Path.Combine(tempPath, "texts");
+
+                if (skinpackName == null)
+                {
+                    throw new Exception("skinpack name not found in target lang");
+                }
+                var skinpackLineRegex = new Regex(@"^skinpack\.(?!.*\.by=)[^=]+=.+");
+
+                foreach (var langFile in Directory.GetFiles(tempLanguageDir, "*.lang"))
+                {
+                    var lines = await File.ReadAllLinesAsync(langFile);
+                    var updated = lines.Select(line =>
+                    {
+                        if (skinpackLineRegex.IsMatch(line))
+                        {
+                            var key = line.Split('=', 2)[0];
+                            return $"{key}={skinpackName}";
+                        }
+                        return line;
+                    }).ToArray(); ;
+                    await File.WriteAllLinesAsync(langFile, updated);
+                }
+            }
+            else
+            {
+                Logger.Warn("No existing en_US.lang found in target directory.");
             }
         }
 
@@ -102,35 +161,45 @@ namespace skininjector_v2
             encript.WaitForExit();
         }
 
-        public static void CleanupTargetFolder(string targetPath)
+        public static void SwapSkinPack(string preparedPath, string targetPath)
         {
+            string backupPath = targetPath + "_old_" + Guid.NewGuid();
+
             if (Directory.Exists(targetPath))
             {
-                Directory.Delete(targetPath, true);
-                Logger.Info($"Cleaned up target folder: {targetPath}");
+                Directory.Move(targetPath, backupPath);
             }
+
+            Directory.Move(preparedPath, targetPath);
+
+            // 後始末（失敗しても致命傷じゃない）
+            try
+            {
+                Directory.Delete(backupPath, true);
+            }
+            catch { }
         }
 
-        public static void CopyToTargetFolder(string tempPath, string targetPath)
+        public static async Task CopyToTargetFolder(string tempPath, string targetPath)
         {
-            foreach (var dirPath in Directory.GetDirectories(tempPath, "*", SearchOption.AllDirectories))
+            foreach (var filePath in Directory.GetFiles(tempPath))
             {
-                Directory.CreateDirectory(dirPath.Replace(tempPath, targetPath));
-            }
-            foreach (var newPath in Directory.GetFiles(tempPath, "*.*", SearchOption.AllDirectories))
-            {
-                File.Copy(newPath, newPath.Replace(tempPath, targetPath), true);
+                string fileName = Path.GetFileName(filePath);
+                string destFilePath = Path.Combine(targetPath, fileName);
+                File.Copy(filePath, destFilePath);
+                await Task.Yield();
             }
             Logger.Info($"Copied skin pack to target folder: {targetPath}");
         }
 
-        public static bool TryValidateSkinPack(string packPath, bool isEncrypted, out string error)
+
+        public static async Task<(bool isValid, string error)> TryValidateSkinPackAsync(string packPath, bool isEncrypted)
         {
             Debug.WriteLine(isEncrypted);
-            error = "";
+            string error = "";
 
             if (!Directory.Exists(packPath)) error = "Pack directory does not exist.";
-            
+
             string manifestPath = Path.Combine(packPath, "manifest.json");
             string skinsJsonPath = Path.Combine(packPath, "skins.json");
 
@@ -138,18 +207,19 @@ namespace skininjector_v2
             if (!IsJsonValid(manifestPath)) error = "manifest.json is invalid.";
             if (!File.Exists(skinsJsonPath)) error = "skins.json does not exist.";
 
-            if (isEncrypted) return true;
+            if (isEncrypted) return (true, "");
 
             if (!IsJsonValid(skinsJsonPath)) error = "skins.json is invalid.";
 
-            if (!IsSkinValid(skinsJsonPath)) error = "skins.json content is invalid.";
+            if (!await IsSkinValidAsync(skinsJsonPath)) error = "skins.json content is invalid.";
 
-            if (error != "") {
+            if (error != "")
+            {
                 Logger.Error(error);
-                return false; 
+                return (false, error);
             }
 
-            return true;
+            return (true, "");
         }
 
         private static bool IsJsonValid(string jsonPath)
@@ -166,13 +236,16 @@ namespace skininjector_v2
             }
         }
 
-        private static bool IsSkinValid(string skinsJsonPath)
+        private static async Task<bool> IsSkinValidAsync(string skinsJsonPath)
         {
             if (!File.Exists(skinsJsonPath))
                 throw new Exception("Skins Json does not exists.");
 
             string jsonContent = File.ReadAllText(skinsJsonPath);
             string baseDir = Path.GetDirectoryName(skinsJsonPath)!;
+
+            var validCount = 0;
+            var warnings = new List<string>();
 
             try
             {
@@ -193,16 +266,20 @@ namespace skininjector_v2
                         string.IsNullOrWhiteSpace(s.Texture) ||
                         string.IsNullOrWhiteSpace(s.Type))
                     {
-                        Logger.Error($"Skin[{i}] missing required fields.");
-                        return false;
+                        var msg = $"Skin[{i}] missing required fields.";
+                        Logger.Warn(msg);
+                        warnings.Add(msg);
+                        continue;
                     }
 
                     // texture
                     string texturePath = Path.Combine(baseDir, s.Texture);
                     if (!File.Exists(texturePath))
                     {
-                        Logger.Error($"Skin[{i}] texture not found: {s.Texture}");
-                        return false;
+                        var msg = $"Skin{i} texture not found: {s.Texture}";
+                        Logger.Warn(msg);
+                        warnings.Add(msg);
+                        continue;
                     }
 
                     // cape（任意）
@@ -211,13 +288,38 @@ namespace skininjector_v2
                         string capePath = Path.Combine(baseDir, s.Cape);
                         if (!File.Exists(capePath))
                         {
-                            Logger.Error($"Skin[{i}] cape not found: {s.Cape}");
-                            return false;
+                            var msg = $"Skin[{i}] cape not found: {s.Cape}";
+                            Logger.Warn(msg);
+                            warnings.Add(msg);
+                            continue;
                         }
+                    }
+
+                    validCount++;
+                }
+
+                if (validCount <= 0)
+                {
+                    Logger.Error("No valid skins found in skins.json.");
+                    return false;
+                }
+
+                Logger.Info($"Total valid skins found: {validCount}");
+                Logger.Info($"Total skins processed: {data.Skins.Length}");
+                Logger.Info("skins.json content is valid.");
+
+                // 警告がある場合はダイアログで続けるかを選択
+                if (warnings.Count > 0 && OnConfirm != null)
+                {
+                    var warningMessage = $"以下の警告があります:\n\n{string.Join("\n", warnings)}\n\n有効なスキン: {validCount}/{data.Skins.Length}\n\n続行しますか？";
+                    var shouldContinue = await OnConfirm(warningMessage);
+                    if (!shouldContinue)
+                    {
+                        Logger.Info("User cancelled injection due to warnings.");
+                        return false;
                     }
                 }
 
-                Logger.Info("skins.json validation succeeded.");
                 return true;
             }
             catch (JsonException ex)

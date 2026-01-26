@@ -2,5 +2,7 @@
 
 <img src="https://img.shields.io/github/downloads/oasoobi/skininjector-v2/total?style=for-the-badge">
 
-# 使い方は以下に移動しました
+**このツールは最低限のメンテナンスのみ行われます。**
+
+# 使い方
 https://go.oasoobi.net/si/guide
