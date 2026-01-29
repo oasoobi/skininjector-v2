@@ -89,11 +89,12 @@ namespace skininjector_v2
 
             var GetPackTranslateName = new Regex(@"^^skinpack\.[^.=\s]+(?!\.by)=(.+)$");
 
+            string languageDir = Path.Combine(sourcePath, "texts");
             string targetDiretoryLanguagePath = Path.Combine(targetPath, "texts/en_US.lang");
 
             Logger.Info($"Looking for language file at: {targetDiretoryLanguagePath}");
 
-            if (File.Exists(targetDiretoryLanguagePath))
+            if (Directory.Exists(languageDir) && File.Exists(targetDiretoryLanguagePath))
             {
                 var targetLines = await File.ReadAllLinesAsync(targetDiretoryLanguagePath);
                 string? skinpackName = null;
