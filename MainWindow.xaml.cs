@@ -525,7 +525,13 @@ namespace skininjector_v2
 
         private void DeleteSkinData(object sender, RoutedEventArgs e)
         {
-            string? targetPath = PackNameList_[PackNameListView.SelectedIndex]?.FolderPath;
+            var packInfo = PackNameListView.SelectedItem as PackInfo;
+            if (packInfo == null) 
+            { 
+                this.ShowErrorMsg("削除するスキンパックが選択されていません。");
+                return;
+            }
+            string? targetPath = packInfo.FolderPath;
             if (targetPath == null)
             {
                 this.ShowErrorMsg("削除するスキンパックのパスが存在しません。");
