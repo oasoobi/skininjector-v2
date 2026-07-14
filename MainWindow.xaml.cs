@@ -633,10 +633,19 @@ namespace skininjector_v2
             }
             else
             {
-                var filtered = PackNameList_
+                if (Guid.TryParse(searchText, out Guid guid)) //uuid検索
+                {
+                    var filteredByUUID = PackNameList_
+                        .Where(p => p.PackUUID != null && p.PackUUID.Equals(guid.ToString(), StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    PackNameListView.ItemsSource = filteredByUUID;
+                } else //パック名検索にフォールバック
+                {
+                    var filtered = PackNameList_
                     .Where(p => p.PackName != null && p.PackName.ToLower().Contains(searchText))
                     .ToList();
-                PackNameListView.ItemsSource = filtered;
+                    PackNameListView.ItemsSource = filtered;
+                }
             }
 
             // 選択状態をリセット
