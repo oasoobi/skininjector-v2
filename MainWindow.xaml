@@ -37,7 +37,7 @@
                 <StackPanel Width="800" Height="460" Margin="0 6 0 0" CornerRadius="4">
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 4">
                         <TextBox x:Name="SearchBox" 
-                                 PlaceholderText="パック名を検索..." 
+                                 PlaceholderText="パック名またはUUIDで検索..." 
                                  Width="761"
                                  Margin="0 0 5 0"
                                  TextChanged="SearchBox_TextChanged"/>

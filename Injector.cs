@@ -168,17 +168,52 @@ namespace skininjector_v2
 
             if (Directory.Exists(targetPath))
             {
-                Directory.Move(targetPath, backupPath);
+                try
+                {
+                    Directory.Move(targetPath, backupPath);
+                }
+                catch (IOException)
+                {
+                    CopyDirectory(targetPath, backupPath);
+                    Directory.Delete(targetPath, true);
+                }
             }
 
-            Directory.Move(preparedPath, targetPath);
+            try
+            {
+                Directory.Move(preparedPath, targetPath);
+            }
+            catch (IOException)
+            {
+                CopyDirectory(preparedPath, targetPath);
+                Directory.Delete(preparedPath, true);
+            }
 
-            // 後始末（失敗しても致命傷じゃない）
             try
             {
                 Directory.Delete(backupPath, true);
             }
             catch { }
+        }
+
+        private static void CopyDirectory(string sourceDir, string destDir)
+        {
+            if (!Directory.Exists(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                string destFile = Path.Combine(destDir, Path.GetFileName(file));
+                File.Copy(file, destFile, true);
+            }
+
+            foreach (var dir in Directory.GetDirectories(sourceDir))
+            {
+                string destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
+                CopyDirectory(dir, destSubDir);
+            }
         }
 
         public static async Task CopyToTargetFolder(string tempPath, string targetPath)

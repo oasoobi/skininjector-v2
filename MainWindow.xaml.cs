@@ -194,13 +194,16 @@ namespace skininjector_v2
                     if (content == null || json == null) continue;
 
                     string? packName = json["header"]?["name"]?.GetValue<string>();
+                    string? packUUID = json["header"]?["uuid"]?.GetValue<string>();
                     if (packName == null)
                     {
                         packName = "Unknown";
                         packList.Add(new PackInfo
                         {
                             FolderPath = subFolder,
-                            PackName = packName
+                            PackName = packName,
+                            PackUUID = packUUID
+
                         });
                         Logger.Info("Pack name not found in manifest, skipping...");
                         continue;
@@ -236,11 +239,13 @@ namespace skininjector_v2
                             }
                         }
                     }
+
                     Logger.Info($"Found pack: {packName}");
                     packList.Add(new PackInfo
                     {
                         FolderPath = subFolder,
-                        PackName = packName
+                        PackName = packName,
+                        PackUUID = packUUID
                     });
                 }
                 catch (Exception ex)
@@ -288,8 +293,23 @@ namespace skininjector_v2
                 }
             };
 
+            var copyUUIDItem = new MenuFlyoutItem { Text = "このスキンパックのUUIDをコピー" };
+            copyUUIDItem.Click += (s, args) =>
+            {
+                if (packInfo.PackUUID != null)
+                {
+                    var dataPackage = new DataPackage();
+                    dataPackage.SetText(packInfo.PackUUID);
+                    Clipboard.SetContent(dataPackage);
+                } else
+                {
+                    Debug.WriteLine("UUID が見つからない");
+                }
+            };
+
             menu.Items.Add(openItem);
             menu.Items.Add(deleteItem);
+            menu.Items.Add(copyUUIDItem);
 
             // メニュー表示
             menu.ShowAt(textBlock, e.GetPosition(textBlock));
@@ -634,5 +654,7 @@ namespace skininjector_v2
     {
         public string? FolderPath { get; set; }
         public string? PackName { get; set; }
+
+        public string? PackUUID { get; set; }
     }
 }
