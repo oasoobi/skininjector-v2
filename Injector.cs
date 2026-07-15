@@ -3,13 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using Windows.Foundation.Diagnostics;
 namespace skininjector_v2
 {
     public class Injector
@@ -20,10 +17,22 @@ namespace skininjector_v2
         public static Func<string, Task<bool>>? OnConfirm;
         public static async Task ExecuteInjectionAsync(string sourcePath, string targetPath, bool isEncryptEnabled)
         {
+            var sourcePackInfo = Utils.GetPackInfoFromManifest(Path.Combine(sourcePath, "manifest.json"));
+            var targetPackInfo = Utils.GetPackInfoFromManifest(Path.Combine(targetPath, "manifest.json"));
             var (isValid, error) = await TryValidateSkinPackAsync(sourcePath, !isEncryptEnabled);
             if (!isValid)
             {
-                Logger.Error("Skin pack validation failed. Injection aborted.");
+
+                HistoryManager.Add(new HistoryItem
+                {
+                    Message = $"{targetPackInfo?.PackName} から ${sourcePackInfo?.PackName} への置き換えに失敗しました。",
+                    Error = $"スキンパックの内容の一部が無効です。詳細:{error}",
+                    Status = "failed",
+                    SourcePack = sourcePackInfo,
+                    TargetPack = targetPackInfo,
+                    IsEncrypt = isEncryptEnabled
+                });
+                Logger.Error($"スキンパックの内容の一部が無効です。詳細:{error}");
                 throw new Exception(error);
             }
             OnProgress?.Invoke(10);
@@ -37,17 +46,57 @@ namespace skininjector_v2
 
             if (isEncryptEnabled)
             {
-                await Task.Run(() => EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack")));
+                try
+                {
+                    await Task.Run(() => EncryptSkinPack(Path.Combine(Directory.GetCurrentDirectory(), "skinpack")));
+                }
+                catch (Exception ex) {
+                    HistoryManager.Add(new HistoryItem
+                    {
+                        Message = $"{targetPackInfo?.PackName} から ${sourcePackInfo?.PackName} への置き換えに失敗しました。",
+                        Error = $"スキンパックの暗号化に失敗しました。詳細:{error}",
+                        Status = "failed",
+                        SourcePack = sourcePackInfo,
+                        TargetPack = targetPackInfo,
+                        IsEncrypt = isEncryptEnabled
+                    });
+                    Logger.Error($"スキンパックの暗号化に失敗しました。詳細:{error}");
+                    throw new Exception(error);
+                }
+                
             }
             OnProgress?.Invoke(80);
-
-            SwapSkinPack(
+            try
+            {
+                SwapSkinPack(
                 Path.Combine(Directory.GetCurrentDirectory(), "skinpack"),
-                targetPath
-            );
+                targetPath);
+            }
+            catch (Exception ex) {
+                HistoryManager.Add(new HistoryItem
+                {
+                    Message = $"{targetPackInfo?.PackName} から ${sourcePackInfo?.PackName} への置き換えに失敗しました。",
+                    Error = $"スキンパックの入れ替えに失敗しました。詳細:{error}",
+                    Status = "failed",
+                    SourcePack = sourcePackInfo,
+                    TargetPack = targetPackInfo,
+                    IsEncrypt = isEncryptEnabled
+                });
+                Logger.Error($"スキンパックの入れ替えに失敗しました。詳細:{error}");
+                throw new Exception(error);
+            }
+            
             await Task.Delay(50);
             OnProgress?.Invoke(100);
             Logger.Info("Skin pack injection completed successfully.");
+
+            HistoryManager.Add(new HistoryItem {
+                Message = $"{targetPackInfo?.PackName} を {sourcePackInfo?.PackName} へ正常に置き換えました。",
+                Status = "success",
+                SourcePack = sourcePackInfo, 
+                TargetPack = targetPackInfo,
+                IsEncrypt = isEncryptEnabled
+            });
         }
 
         public static async Task CopyToTempFolder(string sourcePath, string targetPath)
