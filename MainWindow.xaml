@@ -6,70 +6,19 @@
     xmlns:local="using:skininjector_v2"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"    
-    Title="skininjector v2.0.7-beta.2 Created by oasobi">
+    mc:Ignorable="d">
 
-    <Grid x:Name="DDFolder" AllowDrop="True" DragEnter="WindowDragEnter" Drop="WindowDrag">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition />
-        </Grid.RowDefinitions>
-        <Grid x:Name="TitleBar" Background="Transparent" Height="32">
-            <TextBlock Text="SkinInjector v2.0.7-beta.2 Created by oasobi"
-                       VerticalAlignment="Center" Margin="12,0,0,0"/>
-        </Grid>
-        <Grid Width="1000" Height="600" Grid.Row="1">
-            <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Width="800" Margin="0 0 0 6">
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition />
+		</Grid.RowDefinitions>
 
-                    <TextBox PlaceholderText="スキンパックのパスを選択" x:Name="SelectedSkinPackPathBox" Width="550" TextChanged="PathChanged"/>
+		<Grid x:Name="TitleBar" Background="Transparent" Height="32">
+			<TextBlock Text="SkinInjector v2.1.0-beta Created by oasobi" VerticalAlignment="Center" Margin="12,0,0,0"/>
+		</Grid>
 
-                    <Button Margin="5 0 5 0" Width="60" Click="SelectSkinPackFolder" x:Name="SelectSkinPackPathBtn">選択</Button>
+		<Frame x:Name="RootFrame" Grid.Row="1"/>
+	</Grid>
 
-                    <ComboBox x:Name="EditionChangedBox" Width="180" SelectionChanged="EditonChanged">
-                        <ComboBoxItem x:Name="MinecraftEdtionBoxItem">Minecraft</ComboBoxItem>
-                        <ComboBoxItem x:Name="MinecraftPreviewEdtionBoxItem">Minecraft Preview</ComboBoxItem>
-                    </ComboBox>
-                </StackPanel>
-                <TextBlock Text="スキンデータの保存先のパス:" Margin="5 0 0 5"/>
-                <TextBox IsReadOnly="True" x:Name="ChangedPath" Width="800"></TextBox>
-                <Border/>
-                <StackPanel Width="800" Height="460" Margin="0 6 0 0" CornerRadius="4">
-                    <StackPanel Orientation="Horizontal" Margin="0 0 0 4">
-                        <TextBox x:Name="SearchBox" 
-                                 PlaceholderText="パック名を検索..." 
-                                 Width="761"
-                                 Margin="0 0 5 0"
-                                 TextChanged="SearchBox_TextChanged"/>
-                        <Button x:Name="ReloadBtn" 
-                                Click="ReloadSkinPackList" 
-                                Margin="0 0 0 0"
-                                Padding="0 0 0 0"
-                                Width="32" 
-                                Height="32"
-                                ToolTipService.ToolTip="一覧を更新">
-                            <FontIcon Glyph="&#xE72C;" FontSize="12"/>
-                        </Button>
-                    </StackPanel>
-                    <ListView x:Name="PackNameListView" 
-                              ItemsSource="{Binding PackNameList}" 
-                              ScrollViewer.VerticalScrollMode="Enabled" 
-                              Height="420" 
-                              SelectionChanged="TargetPackChanged">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="local:PackInfo">
-                                <TextBlock Text="{Binding PackName}" RightTapped="PackItem_RightTapped"></TextBlock>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
-                    <CheckBox IsChecked="True" x:Name="EncryptCheckBox" Margin="0 4 0 0" Width="120">暗号化を行う</CheckBox>
-                    <Button Margin="0 0 4 0" Width="130" Click="DeleteSkinData" x:Name="DeleteSkinDataBtn">スキンデータを削除</Button>
-                    <Button x:Name="InjectBtn" Click="Inject" Margin="0 0 4 0" Width="70">Inject</Button>
-                    <ProgressBar x:Name="InjectProgress" Width="480" Height="20" Value="0"/>
-                </StackPanel>
-            </StackPanel>
-        </Grid>
-    </Grid>
 </Window>

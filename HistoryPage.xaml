@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+	x:Name="Root"
+    x:Class="skininjector_v2.HistoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:conv="using:skininjector_v2.Converters"
+    xmlns:local="using:skininjector_v2"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+	<Page.Resources>
+		<conv:StringToVisibilityConverter x:Key="StringToVisibility"/>
+		<conv:StatusSuccessVisibilityConverter  x:Key="StatusSuccessVisibility"/>
+		<conv:StatusFailedVisibilityConverter x:Key="StatusFailedVisibility"/>
+	</Page.Resources>
+	<ContentControl x:Name="ContentRoot" HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch" Padding="16">
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+			</Grid.RowDefinitions>
+			<StackPanel Padding="0 0 0 12" Spacing="8" Grid.Row="0">
+				<Button Click="BackToHomeButton_Click">
+					<StackPanel Orientation="Horizontal" Spacing="8">
+						<FontIcon Glyph="&#xE72B;" FontSize="14"/>
+						<TextBlock Text="ホームに戻る"/>
+					</StackPanel>
+				</Button>
+				<Grid>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+					<TextBlock Text="履歴" FontWeight="Bold" FontSize="24" Grid.Column="0"/>
+					<Button Content="すべての履歴を削除する" Style="{StaticResource AccentButtonStyle}" Grid.Column="2" x:Name="DeleteAllHistoryButton" Click="DeleteAllHistoryButton_Click"/>
+				</Grid>
+			</StackPanel>
+			<ScrollViewer Grid.Row="1" x:Name="HistoryScrollViewer">
+					<ItemsRepeater x:Name="HistoryRepeater" ItemsSource="{Binding History}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Vertical" Spacing="12"/>
+                        </ItemsRepeater.Layout>
+						<ItemsRepeater.ItemTemplate>
+                        <DataTemplate>
+                            <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0">
+                                <Expander.Header>
+                                    <Grid Margin="0 16 0 0" Padding="0 0 0 16" ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding TargetPack.PackName}" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
+                                                <FontIcon Glyph="&#xE72A;" VerticalAlignment="Center" FontSize="20"/>
+                                                <TextBlock Text="{Binding SourcePack.PackName}" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
+                                                <FontIcon Glyph="&#xE8FB;" Foreground="#4CBB17" FontWeight="Bold" VerticalAlignment="Center" Visibility="{Binding Status, Converter={StaticResource StatusSuccessVisibility}}"/>
+                                                <FontIcon Glyph="&#xE783;" VerticalAlignment="Center" FontWeight="Bold" Foreground="#ED1A3D" Visibility="{Binding Status, Converter={StaticResource StatusFailedVisibility}}" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Message}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                            <SplitButton Content="再実行" Click="ReRun_Click">
+                                                <SplitButton.Flyout>
+                                                    <MenuFlyout>
+                                                        <MenuFlyoutItem Text="元のパックを復元(スキンの再読み込みが必要)" Click="Restore_Click"/>
+                                                        
+                                                        <MenuFlyoutSeparator/>
+                                                        <MenuFlyoutItem Text="暗号化して再実行" Click="ReRunEnc_Click"/>
+
+                                                        <MenuFlyoutItem Text="暗号化せずに再実行" Click="ReRunNoEnc_Click"/>
+                                                        
+                                                    </MenuFlyout>
+                                                </SplitButton.Flyout>
+                                            </SplitButton>
+                                        </StackPanel>
+                                    </Grid>
+                                </Expander.Header>
+                                <Expander.Content>
+                                    <StackPanel Orientation="Vertical" Spacing="16" Margin="16">
+                                        <TextBlock>
+                                                <Run Text="暗号化: "/>
+                                                <Run Text="{Binding IsEncrypt}"/>
+                                        </TextBlock>
+
+                                        <TextBlock Text="エラー内容:"
+													   FontWeight="Bold"
+													   FontSize="16"
+													   Visibility="{Binding Error, Converter={StaticResource StringToVisibility}}"/>
+
+                                        <TextBlock Text="{Binding Error}"
+													   Visibility="{Binding Error, Converter={StaticResource StringToVisibility}}"/>
+
+                                        <TextBlock FontWeight="Bold" FontSize="16">
+												<Run Text="{Binding TargetPack.PackName}"/>
+												<Run Text=" (置き換え先)のパック情報:"/>
+                                        </TextBlock>
+
+                                        <StackPanel Orientation="Vertical" Spacing="8">
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+														<Run Text="UUID: "/>
+														<Run Text="{Binding TargetPack.PackUUID}"/>
+                                                </TextBlock>
+                                                <AppBarButton VerticalAlignment="Center" Height="46" Width="38" Grid.Column="1" Command="{Binding ElementName=Root, Path=CopyCommand}" CommandParameter="{Binding TargetPack.PackUUID}">
+                                                    <FontIcon Glyph="&#xE8C8;" VerticalAlignment="Center"/>
+                                                </AppBarButton>
+                                            </Grid>
+
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+														<Run Text="フォルダ: "/>
+														<Run Text="{Binding TargetPack.FolderPath}"/>
+                                                </TextBlock>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                                    <AppBarButton VerticalAlignment="Center" Height="46" Width="38" Command="{Binding ElementName=Root, Path=CopyCommand}" CommandParameter="{Binding TargetPack.FolderPath}">
+                                                        <FontIcon Glyph="&#xE8C8;" VerticalAlignment="Center"/>
+                                                    </AppBarButton>
+                                                    <Button Content="フォルダを開く" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Center" Click="OpenFolder" Tag="{Binding TargetPack.FolderPath}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+
+                                        <TextBlock  FontWeight="Bold" FontSize="16">
+												<Run Text="{Binding SourcePack.PackName}"/>
+												<Run Text=" (置き換え元)のパック情報:"/>
+                                        </TextBlock>
+
+                                        <StackPanel Orientation="Vertical" Spacing="8">
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+														<Run Text="UUID: "/>
+														<Run Text="{Binding SourcePack.PackUUID}"/>
+                                                </TextBlock>
+                                                <AppBarButton VerticalAlignment="Center" Height="46" Width="38" Grid.Column="1" Command="{Binding ElementName=Root, Path=CopyCommand}" CommandParameter="{Binding SourcePack.PackUUID}">
+                                                    <FontIcon Glyph="&#xE8C8;" VerticalAlignment="Center"/>
+                                                </AppBarButton>
+                                            </Grid>
+
+                                            <Grid ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+														<Run Text="フォルダ: "/>
+														<Run Text="{Binding SourcePack.FolderPath}"/>
+                                                </TextBlock>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                                    <AppBarButton VerticalAlignment="Center" Height="46" Width="38" Command="{Binding ElementName=Root, Path=CopyCommand}" CommandParameter="{Binding SourcePack.FolderPath}">
+                                                        <FontIcon Glyph="&#xE8C8;" VerticalAlignment="Center"/>
+                                                    </AppBarButton>
+                                                    <Button Content="フォルダを開く" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Center" Click="OpenFolder" Tag="{Binding SourcePack.FolderPath}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Button Content="この履歴を削除する" Click="RemoveHistoryButton_Click" Tag="{Binding Id}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Expander.Content>
+                            </Expander>
+                        </DataTemplate>
+						</ItemsRepeater.ItemTemplate>
+					</ItemsRepeater>
+			</ScrollViewer>
+
+			<StackPanel x:Name="EmptyView"
+					   HorizontalAlignment="Center"
+					   VerticalAlignment="Center"
+					   Spacing="8"
+					   Visibility="Collapsed"
+					   Grid.Row="1">
+				<FontIcon Glyph="&#xE81C;" FontSize="48"/>
+				<TextBlock Text="履歴はまだありません"
+						   FontSize="20"
+						   HorizontalAlignment="Center"/>
+				<TextBlock Text="Injectすると履歴がここに表示されます。"
+						   Opacity="0.7"
+						   HorizontalAlignment="Center"/>
+			</StackPanel>
+		</Grid>
+	</ContentControl>
+	</Page>
