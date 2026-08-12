@@ -148,14 +148,22 @@ namespace skininjector_v2
             if (sender is FrameworkElement element &&
         element.DataContext is HistoryItem item)
             {
-                if (!Directory.Exists(item.TargetPack.FolderPath))
+                bool exists = File.Exists(item.TargetPack.FolderPath) || Directory.Exists(item.TargetPack.FolderPath);
+                if (!exists)
                 {
                     this.ShowErrorMsg("すでにスキンデータを復元する準備ができています。マイクラの更衣室でスキンパックを再読み込みすることで復元されます。(復元するまでSkinInjector上には表示されません。)");
                     return;
                 }
                 else
                 {
-                    Directory.Delete(item.TargetPack.FolderPath, true);
+                    if (File.Exists(item.TargetPack.FolderPath))
+                    {
+                        File.Delete(item.TargetPack.FolderPath);
+                    }
+                    else if (Directory.Exists(item.TargetPack.FolderPath))
+                    {
+                        Directory.Delete(item.TargetPack.FolderPath, true);
+                    }
                     HistoryManager.Remove(item.Id);
                     this.ShowMsg("スキンデータを復元する準備ができました。マイクラの更衣室でスキンパックを再読み込みすることで復元されます。(復元するまでSkinInjector上には表示されず、この履歴も削除されます。)");
                     this.Frame.Navigate(typeof(HistoryPage));
@@ -173,11 +181,11 @@ namespace skininjector_v2
                 {
 
                     ContentRoot.IsEnabled = false;
-                    if (!Directory.Exists(item.TargetPack.FolderPath))
+                    if (!File.Exists(item.TargetPack.FolderPath) && !Directory.Exists(item.TargetPack.FolderPath))
                     {
                       ShowErrorMsg("対象のフォルダが削除されています。");
                         return;
-                    } 
+                    }
                     if (!Directory.Exists(item.SourcePack.FolderPath))
                     {
                         ShowErrorMsg("置き換え元のフォルダが削除されています。");
@@ -214,7 +222,7 @@ namespace skininjector_v2
                 {
 
                     ContentRoot.IsEnabled = false;
-                    if (!Directory.Exists(item.TargetPack.FolderPath))
+                    if (!File.Exists(item.TargetPack.FolderPath) && !Directory.Exists(item.TargetPack.FolderPath))
                     {
                         ShowErrorMsg("対象のフォルダが削除されています。");
                         return;
@@ -254,7 +262,7 @@ namespace skininjector_v2
                 {
 
                     ContentRoot.IsEnabled = false;
-                    if (!Directory.Exists(item.TargetPack.FolderPath))
+                    if (!File.Exists(item.TargetPack.FolderPath) && !Directory.Exists(item.TargetPack.FolderPath))
                     {
                         ShowErrorMsg("対象のフォルダが削除されています。");
                         return;

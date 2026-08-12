@@ -155,15 +155,23 @@ namespace skininjector_v2
 
             var packList = new List<PackInfo>();
 
-            var subFolders = Directory.GetDirectories(targetPath);
-
             Logger.Info("Getting All Skinpacks...");
-            foreach (var subFolder in subFolders)
-            {
-                string manifestPath = System.IO.Path.Combine(subFolder, "manifest.json");
-                Logger.Info($"Checking skinpack in folder: {subFolder}");
 
-                if (!File.Exists(manifestPath)) continue;
+            // zip 化・拡張子削除されたファイル形式に対応
+            foreach (var filePath in Directory.GetFiles(targetPath))
+            {
+                Logger.Info($"Checking skinpack file: {filePath}");
+
+                if (!Utils.IsZipFile(filePath))
+                {
+                    Logger.Info($"Skipping non-zip file: {filePath}");
+                    continue;
+                }
+
+                string? extractedRoot = Utils.ExtractZipToTempFolder(filePath);
+                if (extractedRoot == null) continue;
+
+                string manifestPath = System.IO.Path.Combine(extractedRoot, "manifest.json");
 
                 try
                 {
@@ -178,7 +186,7 @@ namespace skininjector_v2
                         packName = "Unknown";
                         packList.Add(new PackInfo
                         {
-                            FolderPath = subFolder,
+                            FolderPath = filePath,
                             PackName = packName,
                             PackUUID = packUUID
 
@@ -188,7 +196,7 @@ namespace skininjector_v2
                     }
 
                     packName = packName.Replace("\n", "").Replace("\r", "");
-                    string textsFolder = System.IO.Path.Combine(subFolder, "texts");
+                    string textsFolder = System.IO.Path.Combine(extractedRoot, "texts");
                     if (Directory.Exists(textsFolder))
                     {
                         Logger.Info("Looking for localized pack name...");
@@ -221,7 +229,7 @@ namespace skininjector_v2
                     Logger.Info($"Found pack: {packName}");
                     packList.Add(new PackInfo
                     {
-                        FolderPath = subFolder,
+                        FolderPath = filePath,
                         PackName = packName,
                         PackUUID = packUUID
                     });
@@ -250,8 +258,17 @@ namespace skininjector_v2
             var openItem = new MenuFlyoutItem { Text = "フォルダを開く" };
             openItem.Click += (s, args) =>
             {
-
-                if (Directory.Exists(packInfo.FolderPath))
+                if (File.Exists(packInfo.FolderPath))
+                {
+                    // zip 化されたパックはファイルの場所をエクスプローラーで開く
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"/select,\"{packInfo.FolderPath}\"",
+                        UseShellExecute = true
+                    });
+                }
+                else if (Directory.Exists(packInfo.FolderPath))
                 {
                     Process.Start(new ProcessStartInfo
                     {
@@ -438,7 +455,7 @@ namespace skininjector_v2
             }
 
 
-            if (!Directory.Exists(packInfo.FolderPath))
+            if (!File.Exists(packInfo.FolderPath) && !Directory.Exists(packInfo.FolderPath))
             {
                 this.ShowErrorMsg("置き換え先のスキンパックのパスが存在しません。");
                 InjectProgress.Value = 0;
@@ -538,7 +555,14 @@ namespace skininjector_v2
             }
             else
             {
-                Directory.Delete(targetPath, true);
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+                else if (Directory.Exists(targetPath))
+                {
+                    Directory.Delete(targetPath, true);
+                }
                 InjectProgress.Value = 100;
                 this.ShowMsg("スキンデータを復元する準備ができました。マイクラの更衣室でスキンパックを再読み込みすることで復元されます。(復元するまでSkinInjector上には表示されません。)");
                 UpdateSkinPackList();
@@ -557,7 +581,14 @@ namespace skininjector_v2
             }
             else
             {
-                Directory.Delete(targetPath, true);
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+                else if (Directory.Exists(targetPath))
+                {
+                    Directory.Delete(targetPath, true);
+                }
                 InjectProgress.Value = 100;
                 this.ShowMsg("スキンデータを復元する準備ができました。マイクラの更衣室でスキンパックを再読み込みすることで復元されます。(復元するまでSkinInjector上には表示されません。)");
                 UpdateSkinPackList();

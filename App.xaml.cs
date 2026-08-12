@@ -36,6 +36,7 @@ namespace skininjector_v2
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
             appWindow.SetIcon("Assets/AppLogo.ico");
+            appWindow.Title = "SkinInjector v2";
             appWindow.Resize(new Windows.Graphics.SizeInt32(1000, 700));
             var presneter = Microsoft.UI.Windowing.OverlappedPresenter.Create();
             appWindow.SetPresenter(presneter);

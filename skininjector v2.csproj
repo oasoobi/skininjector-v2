@@ -19,6 +19,11 @@
 	<PublishTrimmed>true</PublishTrimmed>
 	<PublishSingleFile>false</PublishSingleFile>
 	<Nullable>enable</Nullable>
+	<Version>2.1.1</Version>
+	<VersionSuffix></VersionSuffix>
+	<InformationalVersion Condition="'$(VersionSuffix)' != ''">$(Version)-$(VersionSuffix)</InformationalVersion>
+	<InformationalVersion Condition="'$(VersionSuffix)' == ''">$(Version)</InformationalVersion>
+	<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,6 +51,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="Assets\AppLogo.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <!--

@@ -63,7 +63,7 @@
                     <CheckBox IsChecked="True" x:Name="EncryptCheckBox" Margin="0 4 0 0" Width="120">暗号化を行う</CheckBox>
                     <Button x:Name="InjectBtn" Click="Inject" Margin="0 0 4 0" Width="60" Style="{StaticResource AccentButtonStyle}" Content="Inject"/>
 
-                    <Button Margin="0 0 4 0" Width="125" Click="DeleteSkinData" x:Name="DeleteSkinDataBtn">スキンデータを削除</Button>
+                    <Button Margin="0 0 4 0" Width="125" Click="DeleteSkinData" x:Name="DeleteSkinDataBtn">スキンデータを復元</Button>
                     <Button x:Name="InjectHistoryButton" Margin="0 0 4 0" Width="90" Content="履歴を表示" Click="InjectHistoryButton_Click"/>
                     <ProgressBar x:Name="InjectProgress" Width="394" Height="20" Value="0"/>
                 </StackPanel>

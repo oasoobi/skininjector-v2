@@ -15,8 +15,8 @@
 		</Grid.RowDefinitions>
 
 		<Grid x:Name="TitleBar" Background="Transparent" Height="32">
-			<TextBlock Text="SkinInjector v2.1.0-beta Created by oasobi" VerticalAlignment="Center" Margin="12,0,0,0"/>
-		</Grid>
+				<TextBlock x:Name="TitleBarText" x:FieldModifier="public" VerticalAlignment="Center" Margin="12,0,0,0"/>
+			</Grid>
 
 		<Frame x:Name="RootFrame" Grid.Row="1"/>
 	</Grid>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
@@ -8,6 +9,58 @@ using System.Text.Json.Nodes;
 namespace skininjector_v2
 {
     public static class Utils {
+        public static bool IsZipFile(string filePath)
+        {
+            try
+            {
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (fs.Length < 4) return false;
+                Span<byte> header = stackalloc byte[4];
+                if (fs.Read(header) < 4) return false;
+                return header[0] == 0x50 && header[1] == 0x4B && header[2] == 0x03 && header[3] == 0x04;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static string? ExtractZipToTempFolder(string zipPath)
+        {
+            try
+            {
+                string tempRoot = Path.Combine(Path.GetTempPath(), "skininjector-v2", "packs");
+                if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true);
+                Directory.CreateDirectory(tempRoot);
+
+                ZipFile.ExtractToDirectory(zipPath, tempRoot);
+
+                if (File.Exists(Path.Combine(tempRoot, "manifest.json")))
+                    return tempRoot;
+
+                var subDirs = Directory.GetDirectories(tempRoot);
+                foreach (var subDir in subDirs)
+                {
+                    if (File.Exists(Path.Combine(subDir, "manifest.json")))
+                        return subDir;
+                }
+
+                Logger.Error($"manifest.json not found in extracted zip: {zipPath}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to extract zip {zipPath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        public static void CompressFolderToZipFile(string sourceFolder, string destinationFilePath)
+        {
+            if (File.Exists(destinationFilePath)) File.Delete(destinationFilePath);
+            ZipFile.CreateFromDirectory(sourceFolder, destinationFilePath, CompressionLevel.Optimal, false);
+        }
+
         public static void CopyDirectory(string sourceDir, string destinationDir, IEnumerable<string>? excludeFileNames = null)
         {
             excludeFileNames ??= Enumerable.Empty<string>();

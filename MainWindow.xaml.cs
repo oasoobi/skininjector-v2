@@ -2,6 +2,7 @@
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using System.Diagnostics;
+using System.Reflection;
 using WinRT;
 
 
@@ -26,6 +27,18 @@ namespace skininjector_v2
             RootFrame.Navigate(typeof(HomePage));
 
             Debug.WriteLine("起動した。");
+
+            var informationalVersion = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (informationalVersion != null)
+            {
+                int plusIndex = informationalVersion.IndexOf('+');
+                if (plusIndex >= 0)
+                {
+                    informationalVersion = informationalVersion.Substring(0, plusIndex);
+                }
+            }
+            TitleBarText.Text = $"SkinInjector v{informationalVersion ?? "unknown"} Created by oasobi";
 
             WindowHelper.SetMinSize(this, 1000, 700);
             TrySetAcrylicBackdrop();

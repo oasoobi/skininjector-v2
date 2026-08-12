@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -17,8 +18,26 @@ namespace skininjector_v2
         public static Func<string, Task<bool>>? OnConfirm;
         public static async Task ExecuteInjectionAsync(string sourcePath, string targetPath, bool isEncryptEnabled)
         {
+            bool isTargetZip = File.Exists(targetPath) && Utils.IsZipFile(targetPath);
+            string workingTargetPath = targetPath;
+            string? targetTempExtracted = null;
+            string? targetZipBackup = null;
+
+            if (isTargetZip)
+            {
+                targetTempExtracted = Utils.ExtractZipToTempFolder(targetPath);
+                if (targetTempExtracted == null)
+                {
+                    throw new Exception("対象のスキンパック(zip)の展開に失敗しました。");
+                }
+                workingTargetPath = targetTempExtracted;
+
+                targetZipBackup = targetPath + "_old_" + Guid.NewGuid();
+                File.Copy(targetPath, targetZipBackup, true);
+            }
+
             var sourcePackInfo = Utils.GetPackInfoFromManifest(Path.Combine(sourcePath, "manifest.json"));
-            var targetPackInfo = Utils.GetPackInfoFromManifest(Path.Combine(targetPath, "manifest.json"));
+            var targetPackInfo = Utils.GetPackInfoFromManifest(Path.Combine(workingTargetPath, "manifest.json"));
             var (isValid, error) = await TryValidateSkinPackAsync(sourcePath, !isEncryptEnabled);
             if (!isValid)
             {
@@ -40,7 +59,7 @@ namespace skininjector_v2
 
             Logger.Info("Skin pack validation succeeded. Proceeding with injection...");
 
-            await CopyToTempFolder(sourcePath, targetPath);
+            await CopyToTempFolder(sourcePath, workingTargetPath);
             OnProgress?.Invoke(30);
             await Task.Delay(50);
 
@@ -63,14 +82,27 @@ namespace skininjector_v2
                     Logger.Error($"スキンパックの暗号化に失敗しました。詳細:{error}");
                     throw new Exception(error);
                 }
-                
+
             }
             OnProgress?.Invoke(80);
             try
             {
-                SwapSkinPack(
-                Path.Combine(Directory.GetCurrentDirectory(), "skinpack"),
-                targetPath);
+                if (isTargetZip)
+                {
+                    string preparedPath = Path.Combine(Directory.GetCurrentDirectory(), "skinpack");
+                    Utils.CompressFolderToZipFile(preparedPath, targetPath);
+
+                    if (targetZipBackup != null && File.Exists(targetZipBackup))
+                    {
+                        try { File.Delete(targetZipBackup); } catch { }
+                    }
+                }
+                else
+                {
+                    SwapSkinPack(
+                    Path.Combine(Directory.GetCurrentDirectory(), "skinpack"),
+                    targetPath);
+                }
             }
             catch (Exception ex) {
                 HistoryManager.Add(new HistoryItem
