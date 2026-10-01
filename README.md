@@ -4,3 +4,6 @@
 
 # 使い方
 https://go.oasoobi.net/si/guide
+
+# Youtube
+https://youtu.be/DvtbhmlzLWo
